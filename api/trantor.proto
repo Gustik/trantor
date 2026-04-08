@@ -1,0 +1,106 @@
+edition = "2023";
+
+package trantor.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Gustik/trantor/api/gen/trantor/v1";
+
+// ───── Auth ─────
+
+service AuthService {
+    rpc Register(RegisterRequest) returns (RegisterResponse);
+    rpc GetSalt(GetSaltRequest)   returns (GetSaltResponse);   // шаг 1 логина: получить salt по login
+    rpc Login(LoginRequest)       returns (LoginResponse);     // шаг 2 логина: аутентификация по auth_key
+}
+
+message RegisterRequest {
+    string login                = 1;
+    bytes  auth_key             = 2; // первые 32 байта от Argon2(пароль + salt), пароль на сервер не передаётся
+    bytes  encrypted_master_key = 3;
+    bytes  master_key_nonce     = 4;
+    bytes  argon2_salt          = 5;
+}
+
+message RegisterResponse {
+    string token = 1;
+}
+
+message GetSaltRequest {
+    string login = 1;
+}
+
+message GetSaltResponse {
+    bytes argon2_salt = 1;
+}
+
+message LoginRequest {
+    string login    = 1;
+    bytes  auth_key = 2; // первые 32 байта от Argon2(пароль + salt), пароль на сервер не передаётся
+}
+
+message LoginResponse {
+    string                    token                = 1;
+    bytes                     encrypted_master_key = 2;
+    bytes                     master_key_nonce     = 3;
+}
+
+// ───── Secrets ─────
+
+service SecretService {
+    rpc CreateSecret(CreateSecretRequest) returns (CreateSecretResponse);
+    rpc GetSecret(GetSecretRequest)       returns (GetSecretResponse);
+    rpc ListSecrets(ListSecretsRequest)   returns (ListSecretsResponse);
+    rpc UpdateSecret(UpdateSecretRequest) returns (UpdateSecretResponse);
+    rpc DeleteSecret(DeleteSecretRequest) returns (DeleteSecretResponse);
+}
+
+message Secret {
+    string                    id         = 1;
+    bytes                     data       = 2;
+    bytes                     nonce      = 3;
+    google.protobuf.Timestamp created_at = 4;
+    google.protobuf.Timestamp updated_at = 5;
+}
+
+message CreateSecretRequest {
+    bytes data  = 1;
+    bytes nonce = 2;
+}
+
+message CreateSecretResponse {
+    string                    id         = 1;
+    google.protobuf.Timestamp created_at = 2;
+}
+
+message GetSecretRequest {
+    string id = 1;
+}
+
+message GetSecretResponse {
+    Secret secret = 1;
+}
+
+message ListSecretsRequest {
+    google.protobuf.Timestamp updated_after = 1; // опционально, для инкрементальной синхронизации
+}
+
+message ListSecretsResponse {
+    repeated Secret secrets = 1;
+}
+
+message UpdateSecretRequest {
+    string id    = 1;
+    bytes  data  = 2;
+    bytes  nonce = 3;
+}
+
+message UpdateSecretResponse {
+    google.protobuf.Timestamp updated_at = 1;
+}
+
+message DeleteSecretRequest {
+    string id = 1;
+}
+
+message DeleteSecretResponse {}
