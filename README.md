@@ -59,8 +59,10 @@ trantor/
 │   └── trantor.proto                    — gRPC контракт: сервисы, сообщения
 │
 ├── migrations/
-│   ├── 001_create_users.sql             — таблица users
-│   └── 002_create_secrets.sql           — таблица secrets
+│   ├── 000001_create_users.up.sql       — создание таблицы users
+│   ├── 000001_create_users.down.sql     — удаление таблицы users
+│   ├── 000002_create_secrets.up.sql     — создание таблицы secrets
+│   └── 000002_create_secrets.down.sql   — удаление таблицы secrets
 │
 ├── docker-compose.yml                   — PostgreSQL для локальной разработки
 ├── Makefile                             — build, test, proto, lint, migrate
