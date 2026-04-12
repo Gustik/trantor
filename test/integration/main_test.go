@@ -17,10 +17,14 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/Gustik/trantor/internal/config"
+	"github.com/Gustik/trantor/internal/server/auth"
 	pgstore "github.com/Gustik/trantor/internal/storage/postgres"
 )
 
-var testStore *pgstore.Storage
+var (
+	testStore       *pgstore.Storage
+	testAuthService *auth.Service
+)
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -65,6 +69,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic("create storage: " + err.Error())
 	}
+
+	testAuthService = auth.New(testStore)
 
 	code := m.Run()
 

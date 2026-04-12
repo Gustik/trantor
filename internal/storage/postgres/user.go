@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -31,7 +32,7 @@ func (s *Storage) CreateUser(ctx context.Context, user *domain.User) error {
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgDuplicateErrorCode {
-			return domain.ErrUserAlreadyExists
+			return ErrDuplicate
 		}
 		return fmt.Errorf("create user: %w", err)
 	}
@@ -59,9 +60,38 @@ func (s *Storage) FindUserByLogin(ctx context.Context, login string) (*domain.Us
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain.ErrUserNotFound
+			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("find user: %w", err)
+		return nil, fmt.Errorf("find user by login: %w", err)
+	}
+
+	return &user, nil
+}
+
+// FindUserByID возвращает пользователя по ID.
+// Возвращает ErrUserNotFound если пользователь не найден.
+func (s *Storage) FindUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	row := s.db.QueryRow(ctx,
+		`SELECT id, login, auth_key_hash, encrypted_master_key, master_key_nonce, argon2_salt, created_at 
+		FROM users WHERE id = $1`,
+		id,
+	)
+
+	var user domain.User
+	err := row.Scan(
+		&user.ID,
+		&user.Login,
+		&user.AuthKeyHash,
+		&user.EncryptedMasterKey,
+		&user.MasterKeyNonce,
+		&user.Argon2Salt,
+		&user.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("find user by id: %w", err)
 	}
 
 	return &user, nil

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
+
 // CreateSecret сохраняет новый секрет в БД.
 func (s *Storage) CreateSecret(ctx context.Context, secret *domain.Secret) error {
 	_, err := s.db.Exec(ctx,
@@ -51,7 +52,7 @@ func (s *Storage) GetSecretByID(ctx context.Context, id, userID uuid.UUID) (*dom
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain.ErrSecretNotFound
+			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("get secret: %w", err)
 	}
@@ -115,7 +116,7 @@ func (s *Storage) UpdateSecret(ctx context.Context, secret *domain.Secret) error
 		return fmt.Errorf("update secret: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return domain.ErrSecretNotFound
+		return ErrNotFound
 	}
 	return nil
 }
@@ -130,7 +131,7 @@ func (s *Storage) DeleteSecret(ctx context.Context, id, userID uuid.UUID) error 
 		return fmt.Errorf("delete secret: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return domain.ErrSecretNotFound
+		return ErrNotFound
 	}
 	return nil
 }
