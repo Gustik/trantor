@@ -16,16 +16,26 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"net"
+
+	pb "github.com/Gustik/trantor/api/gen/trantor/v1"
 	"github.com/Gustik/trantor/internal/config"
 	"github.com/Gustik/trantor/internal/server/auth"
+	grpchandler "github.com/Gustik/trantor/internal/server/grpc"
 	"github.com/Gustik/trantor/internal/server/secret"
 	pgstore "github.com/Gustik/trantor/internal/storage/postgres"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
+var testJWTSecret = []byte("test-jwt-secret-32-bytes-long!!!")
+
 var (
-	testStore          *pgstore.Storage
-	testAuthService    *auth.Service
-	testSecretService  *secret.Service
+	testStore         *pgstore.Storage
+	testAuthService   *auth.Service
+	testSecretService *secret.Service
+	testAuthClient    pb.AuthServiceClient
+	testSecretClient  pb.SecretServiceClient
 )
 
 func TestMain(m *testing.M) {
@@ -75,8 +85,31 @@ func TestMain(m *testing.M) {
 	testAuthService = auth.New(testStore)
 	testSecretService = secret.New(testStore)
 
+	// запускаем gRPC-сервер на случайном порту
+	lis, err := net.Listen("tcp", ":0")
+	if err != nil {
+		panic("listen: " + err.Error())
+	}
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(grpchandler.AuthInterceptor(testJWTSecret)),
+	)
+	handler := grpchandler.New(testAuthService, testSecretService, testJWTSecret)
+	pb.RegisterAuthServiceServer(grpcServer, handler)
+	pb.RegisterSecretServiceServer(grpcServer, handler)
+	go grpcServer.Serve(lis)
+
+	// создаём клиентов
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		panic("dial grpc: " + err.Error())
+	}
+	testAuthClient = pb.NewAuthServiceClient(conn)
+	testSecretClient = pb.NewSecretServiceClient(conn)
+
 	code := m.Run()
 
+	grpcServer.GracefulStop()
+	conn.Close()
 	testStore.Close()
 	_ = pgContainer.Terminate(ctx)
 	os.Exit(code)

@@ -42,7 +42,7 @@ lint:
 
 # Генерация кода из proto
 proto:
-	protoc --go_out=. --go-grpc_out=. api/trantor.proto
+	protoc --go_out=. --go_opt=module=github.com/Gustik/trantor --go-grpc_out=. --go-grpc_opt=module=github.com/Gustik/trantor api/trantor.proto
 
 # Генерация документации из proto
 docs:

@@ -14,6 +14,12 @@ import (
 // KeySize — размер ключа AES-256 в байтах.
 const KeySize = 32
 
+// NonceSize — размер nonce для AES-256-GCM в байтах.
+const NonceSize = 12
+
+// SaltSize — размер salt для Argon2 в байтах.
+const SaltSize = 32
+
 var (
 	// ErrInvalidKeySize возвращается когда размер ключа не равен KeySize.
 	ErrInvalidKeySize = errors.New("invalid key size")

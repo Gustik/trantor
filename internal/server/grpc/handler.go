@@ -5,8 +5,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/Gustik/trantor/internal/domain"
 	"github.com/google/uuid"
+
+	v1 "github.com/Gustik/trantor/api/gen/trantor/v1"
+	"github.com/Gustik/trantor/internal/domain"
 )
 
 // authService определяет методы сервиса аутентификации необходимые gRPC-обработчику.
@@ -35,11 +37,14 @@ type secretService interface {
 
 // Handler реализует gRPC-обработчики сервера Trantor.
 type Handler struct {
-	auth   authService
-	secret secretService
+	v1.UnimplementedAuthServiceServer
+	v1.UnimplementedSecretServiceServer
+	auth      authService
+	secret    secretService
+	jwtSecret []byte
 }
 
 // New создаёт новый экземпляр Handler.
-func New(auth authService, secret secretService) *Handler {
-	return &Handler{auth: auth, secret: secret}
+func New(auth authService, secret secretService, jwtSecret []byte) *Handler {
+	return &Handler{auth: auth, secret: secret, jwtSecret: jwtSecret}
 }
