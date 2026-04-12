@@ -1,6 +1,6 @@
 MIGRATE=migrate -path migrations -database "postgres://trantor:trantor@localhost:5432/trantor?sslmode=disable"
 
-.PHONY: build-server build-client build test lint proto migrate
+.PHONY: build-server build-client build test test-integration lint proto migrate
 
 # Сборка сервера
 build-server:
@@ -26,6 +26,10 @@ build-windows:
 # Тесты
 test:
 	go test ./...
+
+# Интеграционные тесты (требуют Docker)
+test-integration:
+	go test -tags integration -v -timeout 120s ./test/integration/...
 
 # Тесты с покрытием
 test-coverage:

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,19 +23,16 @@ func unsetenv(t *testing.T, key string) {
 func TestLoadServer(t *testing.T) {
 	t.Run("все переменные заданы", func(t *testing.T) {
 		t.Setenv("TRANTOR_GRPC", ":9090")
-		t.Setenv("TRANTOR_DSN", "postgres://user:pass@localhost:5432/trantor?sslmode=disable")
 		t.Setenv("TRANTOR_JWT_SECRET", "super-secret-key")
 
 		cfg, err := LoadServer()
 		require.NoError(t, err)
 		assert.Equal(t, ":9090", cfg.GRPC)
-		assert.Equal(t, "postgres://user:pass@localhost:5432/trantor?sslmode=disable", cfg.DSN)
 		assert.Equal(t, "super-secret-key", cfg.JWTSecret)
 	})
 
 	t.Run("значение по умолчанию для GRPC", func(t *testing.T) {
 		unsetenv(t, "TRANTOR_GRPC")
-		t.Setenv("TRANTOR_DSN", "postgres://user:pass@localhost:5432/trantor?sslmode=disable")
 		t.Setenv("TRANTOR_JWT_SECRET", "super-secret-key")
 
 		cfg, err := LoadServer()
@@ -42,21 +40,51 @@ func TestLoadServer(t *testing.T) {
 		assert.Equal(t, ":50051", cfg.GRPC)
 	})
 
-	t.Run("DSN не задан", func(t *testing.T) {
+	t.Run("JWTSecret не задан", func(t *testing.T) {
 		t.Setenv("TRANTOR_GRPC", ":9090")
-		unsetenv(t, "TRANTOR_DSN")
-		t.Setenv("TRANTOR_JWT_SECRET", "super-secret-key")
+		unsetenv(t, "TRANTOR_JWT_SECRET")
 
 		_, err := LoadServer()
 		assert.Error(t, err)
 	})
+}
 
-	t.Run("JWTSecret не задан", func(t *testing.T) {
-		t.Setenv("TRANTOR_GRPC", ":9090")
+func TestLoadDB(t *testing.T) {
+	t.Run("все переменные заданы", func(t *testing.T) {
 		t.Setenv("TRANTOR_DSN", "postgres://user:pass@localhost:5432/trantor?sslmode=disable")
-		unsetenv(t, "TRANTOR_JWT_SECRET")
+		t.Setenv("TRANTOR_DB_MAX_CONNS", "20")
+		t.Setenv("TRANTOR_DB_MIN_CONNS", "5")
+		t.Setenv("TRANTOR_DB_MAX_CONN_LIFETIME", "2h")
+		t.Setenv("TRANTOR_DB_MAX_CONN_IDLE_TIME", "15m")
 
-		_, err := LoadServer()
+		cfg, err := LoadDB()
+		require.NoError(t, err)
+		assert.Equal(t, "postgres://user:pass@localhost:5432/trantor?sslmode=disable", cfg.DSN)
+		assert.Equal(t, 20, cfg.MaxConns)
+		assert.Equal(t, 5, cfg.MinConns)
+		assert.Equal(t, 2*time.Hour, cfg.MaxConnLifetime)
+		assert.Equal(t, 15*time.Minute, cfg.MaxConnIdleTime)
+	})
+
+	t.Run("значения по умолчанию", func(t *testing.T) {
+		t.Setenv("TRANTOR_DSN", "postgres://user:pass@localhost:5432/trantor?sslmode=disable")
+		unsetenv(t, "TRANTOR_DB_MAX_CONNS")
+		unsetenv(t, "TRANTOR_DB_MIN_CONNS")
+		unsetenv(t, "TRANTOR_DB_MAX_CONN_LIFETIME")
+		unsetenv(t, "TRANTOR_DB_MAX_CONN_IDLE_TIME")
+
+		cfg, err := LoadDB()
+		require.NoError(t, err)
+		assert.Equal(t, 10, cfg.MaxConns)
+		assert.Equal(t, 2, cfg.MinConns)
+		assert.Equal(t, time.Hour, cfg.MaxConnLifetime)
+		assert.Equal(t, 30*time.Minute, cfg.MaxConnIdleTime)
+	})
+
+	t.Run("DSN не задан", func(t *testing.T) {
+		unsetenv(t, "TRANTOR_DSN")
+
+		_, err := LoadDB()
 		assert.Error(t, err)
 	})
 }
