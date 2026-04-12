@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Gustik/trantor/internal/domain"
 	"github.com/Gustik/trantor/internal/storage/postgres"
@@ -42,6 +43,7 @@ func (s *Service) Register(ctx context.Context, user *domain.User) error {
 	}
 
 	user.AuthKeyHash = string(hash)
+	user.CreatedAt = time.Now().UTC()
 
 	if err := s.storage.CreateUser(ctx, user); err != nil {
 		if errors.Is(err, postgres.ErrDuplicate) {

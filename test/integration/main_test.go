@@ -18,12 +18,14 @@ import (
 
 	"github.com/Gustik/trantor/internal/config"
 	"github.com/Gustik/trantor/internal/server/auth"
+	"github.com/Gustik/trantor/internal/server/secret"
 	pgstore "github.com/Gustik/trantor/internal/storage/postgres"
 )
 
 var (
-	testStore       *pgstore.Storage
-	testAuthService *auth.Service
+	testStore          *pgstore.Storage
+	testAuthService    *auth.Service
+	testSecretService  *secret.Service
 )
 
 func TestMain(m *testing.M) {
@@ -71,6 +73,7 @@ func TestMain(m *testing.M) {
 	}
 
 	testAuthService = auth.New(testStore)
+	testSecretService = secret.New(testStore)
 
 	code := m.Run()
 
