@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
@@ -44,11 +45,13 @@ func (h *Handler) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		if errors.Is(err, domain.ErrUserAlreadyExists) {
 			return nil, status.Error(codes.AlreadyExists, "user already exists")
 		}
+		slog.ErrorContext(ctx, "register user", "err", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	token, err := jwt.GenerateToken(user.ID, h.jwtSecret)
 	if err != nil {
+		slog.ErrorContext(ctx, "generate token", "err", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -64,6 +67,7 @@ func (h *Handler) GetSalt(ctx context.Context, req *pb.GetSaltRequest) (*pb.GetS
 		if errors.Is(err, domain.ErrUserNotFound) {
 			return nil, status.Error(codes.NotFound, "user not found")
 		}
+		slog.ErrorContext(ctx, "get salt", "err", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 	return &pb.GetSaltResponse{Argon2Salt: salt}, nil
@@ -84,11 +88,13 @@ func (h *Handler) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		if errors.Is(err, domain.ErrInvalidCredentials) {
 			return nil, status.Error(codes.Unauthenticated, "wrong credentials")
 		}
+		slog.ErrorContext(ctx, "login user", "err", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	token, err := jwt.GenerateToken(user.ID, h.jwtSecret)
 	if err != nil {
+		slog.ErrorContext(ctx, "generate token", "err", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 

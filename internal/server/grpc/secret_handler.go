@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,6 +37,7 @@ func (h *Handler) CreateSecret(ctx context.Context, req *pb.CreateSecretRequest)
 	}
 
 	if err := h.secret.Create(ctx, secret); err != nil {
+		slog.ErrorContext(ctx, "create secret", "err", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -66,6 +68,7 @@ func (h *Handler) GetSecret(ctx context.Context, req *pb.GetSecretRequest) (*pb.
 		if errors.Is(err, domain.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "secret not found")
 		}
+		slog.ErrorContext(ctx, "get secret", "err", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -85,6 +88,7 @@ func (h *Handler) ListSecrets(ctx context.Context, req *pb.ListSecretsRequest) (
 
 	secrets, err := h.secret.List(ctx, userID, updatedAfter)
 	if err != nil {
+		slog.ErrorContext(ctx, "list secrets", "err", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -128,6 +132,7 @@ func (h *Handler) UpdateSecret(ctx context.Context, req *pb.UpdateSecretRequest)
 		if errors.Is(err, domain.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "secret not found")
 		}
+		slog.ErrorContext(ctx, "update secret", "err", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -153,6 +158,7 @@ func (h *Handler) DeleteSecret(ctx context.Context, req *pb.DeleteSecretRequest)
 		if errors.Is(err, domain.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "secret not found")
 		}
+		slog.ErrorContext(ctx, "delete secret", "err", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
