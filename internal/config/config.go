@@ -21,6 +21,9 @@ type ClientConfig struct {
 	ServerAddr string `env:"TRANTOR_SERVER_ADDR" env-default:"localhost:50051"`
 	// VaultPath — путь к файлу локального хранилища секретов.
 	VaultPath string `env:"TRANTOR_VAULT_PATH" env-default:"~/.trantor/vault.db"`
+	// TLSEnabled — использовать TLS для подключения к серверу.
+	// Для локального сервера оставить false, для продакшена true.
+	TLSEnabled bool `env:"TRANTOR_TLS" env-default:"false"`
 }
 
 // DBConfig содержит конфигурацию postgres

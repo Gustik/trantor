@@ -93,20 +93,24 @@ func TestLoadClient(t *testing.T) {
 	t.Run("все переменные заданы", func(t *testing.T) {
 		t.Setenv("TRANTOR_SERVER_ADDR", "myserver:50051")
 		t.Setenv("TRANTOR_VAULT_PATH", "/tmp/vault.db")
+		t.Setenv("TRANTOR_TLS", "true")
 
 		cfg, err := LoadClient()
 		require.NoError(t, err)
 		assert.Equal(t, "myserver:50051", cfg.ServerAddr)
 		assert.Equal(t, "/tmp/vault.db", cfg.VaultPath)
+		assert.True(t, cfg.TLSEnabled)
 	})
 
 	t.Run("значения по умолчанию", func(t *testing.T) {
 		unsetenv(t, "TRANTOR_SERVER_ADDR")
 		unsetenv(t, "TRANTOR_VAULT_PATH")
+		unsetenv(t, "TRANTOR_TLS")
 
 		cfg, err := LoadClient()
 		require.NoError(t, err)
 		assert.Equal(t, "localhost:50051", cfg.ServerAddr)
 		assert.Equal(t, "~/.trantor/vault.db", cfg.VaultPath)
+		assert.False(t, cfg.TLSEnabled)
 	})
 }
