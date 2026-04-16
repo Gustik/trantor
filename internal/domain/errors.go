@@ -4,5 +4,6 @@ package domain
 import "errors"
 
 var (
-	ErrInternal = errors.New("internal error")
+	ErrInternal         = errors.New("internal error")
+	ErrNotAuthenticated = errors.New("не авторизован")
 )

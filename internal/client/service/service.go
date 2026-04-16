@@ -43,12 +43,17 @@ type vault interface {
 	LastSyncedAt(ctx context.Context) (time.Time, error)
 	// SetLastSyncedAt сохраняет время последней успешной синхронизации.
 	SetLastSyncedAt(ctx context.Context, t time.Time) error
+	// SetAuthToken сохраняет токен авторизации.
+	SetAuthToken(ctx context.Context, token string) error
+	// GetAuthToken возвращает токен авторизации.
+	GetAuthToken(ctx context.Context) (string, error)
 }
 
 // Service реализует клиентскую бизнес-логику: взаимодействие с сервером и локальным хранилищем.
 type Service struct {
-	client grpcClient
-	vault  vault
+	client    grpcClient
+	vault     vault
+	masterKey []byte
 }
 
 // New создаёт новый экземпляр Service.

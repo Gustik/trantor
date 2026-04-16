@@ -15,6 +15,10 @@ import (
 )
 
 // Vault реализует локальное хранилище секретов на основе SQLite.
+//
+// TODO: Должно ли локальное хранилище быть здесь,
+// может стоит вынести в storage по аналогии с серверным хранилищем?
+// Или storage/postgres перенести в server?
 type Vault struct {
 	db *sql.DB
 }
@@ -127,6 +131,31 @@ func (v *Vault) SetLastSyncedAt(ctx context.Context, t time.Time) error {
 		return fmt.Errorf("set last synced at: %w", err)
 	}
 	return nil
+}
+
+// SetAuthToken сохраняет токен авторизации.
+func (v *Vault) SetAuthToken(ctx context.Context, token string) error {
+	_, err := v.db.ExecContext(ctx, `
+		INSERT INTO meta (key, value) VALUES ('auth_token', ?)
+		ON CONFLICT (key) DO UPDATE SET value = excluded.value
+	`, token)
+	if err != nil {
+		return fmt.Errorf("set auth token: %w", err)
+	}
+	return nil
+}
+
+// GetAuthToken возвращает токен авторизации.
+func (v *Vault) GetAuthToken(ctx context.Context) (string, error) {
+	var token string
+	err := v.db.QueryRowContext(ctx, `SELECT value FROM meta WHERE key = 'auth_token'`).Scan(&token)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", domain.ErrNotAuthenticated
+		}
+		return "", fmt.Errorf("get auth token: %w", err)
+	}
+	return token, nil
 }
 
 // Close закрывает бд

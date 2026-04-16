@@ -184,6 +184,9 @@ func protoToSecret(s *pb.Secret) (*domain.Secret, error) {
 	}, nil
 }
 
+// TODO: походу каст ошибок надо вынести на уровень сервиса?
+//	Должен ли сервис знать коды ошибок protobuf?
+
 // toAuthError транслирует gRPC-ошибку auth-методов в доменную.
 func toAuthError(err error) error {
 	switch status.Code(err) {
