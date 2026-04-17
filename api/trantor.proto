@@ -83,18 +83,22 @@ service SecretService {
 
 // Secret представляет зашифрованный секрет пользователя.
 // Сервер не знает содержимого data — все данные зашифрованы мастер-ключом на клиенте.
+// Если deleted_at установлен — секрет удалён: data и nonce обнулены, клиент должен удалить его локально.
 message Secret {
     string                    id         = 1;
-    bytes                     data       = 2; // AES-GCM(master_key, SecretPayload{Type, Name, Data, Metadata})
-    bytes                     nonce      = 3; // nonce для расшифровки data
+    bytes                     data       = 2; // AES-GCM(master_key, SecretPayload{Type, Name, Data, Metadata}), NULL если удалён
+    bytes                     nonce      = 3; // nonce для расшифровки data, NULL если удалён
     google.protobuf.Timestamp created_at = 4;
     google.protobuf.Timestamp updated_at = 5;
+    google.protobuf.Timestamp deleted_at = 6; // установлен если секрет удалён (soft delete)
 }
 
 // CreateSecretRequest содержит зашифрованный blob для сохранения на сервере.
+// id генерируется клиентом (UUID v4) — позволяет безопасно повторять запрос при потере сети.
 message CreateSecretRequest {
-    bytes data  = 1; // AES-GCM(master_key, SecretPayload)
-    bytes nonce = 2; // nonce для расшифровки data
+    string id    = 3; // client-generated UUID v4
+    bytes  data  = 1; // AES-GCM(master_key, SecretPayload)
+    bytes  nonce = 2; // nonce для расшифровки data
 }
 
 // CreateSecretResponse возвращает ID и время создания нового секрета.

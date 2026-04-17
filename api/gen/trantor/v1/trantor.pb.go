@@ -352,13 +352,15 @@ func (x *LoginResponse) GetMasterKeyNonce() []byte {
 
 // Secret представляет зашифрованный секрет пользователя.
 // Сервер не знает содержимого data — все данные зашифрованы мастер-ключом на клиенте.
+// Если deleted_at установлен — секрет удалён: data и nonce обнулены, клиент должен удалить его локально.
 type Secret struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data" json:"data,omitempty"`   // AES-GCM(master_key, SecretPayload{Type, Name, Data, Metadata})
-	Nonce         []byte                 `protobuf:"bytes,3,opt,name=nonce" json:"nonce,omitempty"` // nonce для расшифровки data
+	Data          []byte                 `protobuf:"bytes,2,opt,name=data" json:"data,omitempty"`   // AES-GCM(master_key, SecretPayload{Type, Name, Data, Metadata}), NULL если удалён
+	Nonce         []byte                 `protobuf:"bytes,3,opt,name=nonce" json:"nonce,omitempty"` // nonce для расшифровки data, NULL если удалён
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt" json:"updated_at,omitempty"`
+	DeletedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=deleted_at,json=deletedAt" json:"deleted_at,omitempty"` // установлен если секрет удалён (soft delete)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -428,9 +430,18 @@ func (x *Secret) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Secret) GetDeletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DeletedAt
+	}
+	return nil
+}
+
 // CreateSecretRequest содержит зашифрованный blob для сохранения на сервере.
+// id генерируется клиентом (UUID v4) — позволяет безопасно повторять запрос при потере сети.
 type CreateSecretRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            *string                `protobuf:"bytes,3,opt,name=id" json:"id,omitempty"`       // client-generated UUID v4
 	Data          []byte                 `protobuf:"bytes,1,opt,name=data" json:"data,omitempty"`   // AES-GCM(master_key, SecretPayload)
 	Nonce         []byte                 `protobuf:"bytes,2,opt,name=nonce" json:"nonce,omitempty"` // nonce для расшифровки data
 	unknownFields protoimpl.UnknownFields
@@ -465,6 +476,13 @@ func (x *CreateSecretRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateSecretRequest.ProtoReflect.Descriptor instead.
 func (*CreateSecretRequest) Descriptor() ([]byte, []int) {
 	return file_api_trantor_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CreateSecretRequest) GetId() string {
+	if x != nil && x.Id != nil {
+		return *x.Id
+	}
+	return ""
 }
 
 func (x *CreateSecretRequest) GetData() []byte {
@@ -929,7 +947,7 @@ const file_api_trantor_proto_rawDesc = "" +
 	"\rLoginResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x120\n" +
 	"\x14encrypted_master_key\x18\x02 \x01(\fR\x12encryptedMasterKey\x12(\n" +
-	"\x10master_key_nonce\x18\x03 \x01(\fR\x0emasterKeyNonce\"\xb8\x01\n" +
+	"\x10master_key_nonce\x18\x03 \x01(\fR\x0emasterKeyNonce\"\xf3\x01\n" +
 	"\x06Secret\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12\x14\n" +
@@ -937,8 +955,11 @@ const file_api_trantor_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"?\n" +
-	"\x13CreateSecretRequest\x12\x12\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x129\n" +
+	"\n" +
+	"deleted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\"O\n" +
+	"\x13CreateSecretRequest\x12\x0e\n" +
+	"\x02id\x18\x03 \x01(\tR\x02id\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\"a\n" +
 	"\x14CreateSecretResponse\x12\x0e\n" +
@@ -1010,32 +1031,33 @@ var file_api_trantor_proto_goTypes = []any{
 var file_api_trantor_proto_depIdxs = []int32{
 	17, // 0: trantor.v1.Secret.created_at:type_name -> google.protobuf.Timestamp
 	17, // 1: trantor.v1.Secret.updated_at:type_name -> google.protobuf.Timestamp
-	17, // 2: trantor.v1.CreateSecretResponse.created_at:type_name -> google.protobuf.Timestamp
-	6,  // 3: trantor.v1.GetSecretResponse.secret:type_name -> trantor.v1.Secret
-	17, // 4: trantor.v1.ListSecretsRequest.updated_after:type_name -> google.protobuf.Timestamp
-	6,  // 5: trantor.v1.ListSecretsResponse.secrets:type_name -> trantor.v1.Secret
-	17, // 6: trantor.v1.UpdateSecretResponse.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 7: trantor.v1.AuthService.Register:input_type -> trantor.v1.RegisterRequest
-	2,  // 8: trantor.v1.AuthService.GetSalt:input_type -> trantor.v1.GetSaltRequest
-	4,  // 9: trantor.v1.AuthService.Login:input_type -> trantor.v1.LoginRequest
-	7,  // 10: trantor.v1.SecretService.CreateSecret:input_type -> trantor.v1.CreateSecretRequest
-	9,  // 11: trantor.v1.SecretService.GetSecret:input_type -> trantor.v1.GetSecretRequest
-	11, // 12: trantor.v1.SecretService.ListSecrets:input_type -> trantor.v1.ListSecretsRequest
-	13, // 13: trantor.v1.SecretService.UpdateSecret:input_type -> trantor.v1.UpdateSecretRequest
-	15, // 14: trantor.v1.SecretService.DeleteSecret:input_type -> trantor.v1.DeleteSecretRequest
-	1,  // 15: trantor.v1.AuthService.Register:output_type -> trantor.v1.RegisterResponse
-	3,  // 16: trantor.v1.AuthService.GetSalt:output_type -> trantor.v1.GetSaltResponse
-	5,  // 17: trantor.v1.AuthService.Login:output_type -> trantor.v1.LoginResponse
-	8,  // 18: trantor.v1.SecretService.CreateSecret:output_type -> trantor.v1.CreateSecretResponse
-	10, // 19: trantor.v1.SecretService.GetSecret:output_type -> trantor.v1.GetSecretResponse
-	12, // 20: trantor.v1.SecretService.ListSecrets:output_type -> trantor.v1.ListSecretsResponse
-	14, // 21: trantor.v1.SecretService.UpdateSecret:output_type -> trantor.v1.UpdateSecretResponse
-	16, // 22: trantor.v1.SecretService.DeleteSecret:output_type -> trantor.v1.DeleteSecretResponse
-	15, // [15:23] is the sub-list for method output_type
-	7,  // [7:15] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	17, // 2: trantor.v1.Secret.deleted_at:type_name -> google.protobuf.Timestamp
+	17, // 3: trantor.v1.CreateSecretResponse.created_at:type_name -> google.protobuf.Timestamp
+	6,  // 4: trantor.v1.GetSecretResponse.secret:type_name -> trantor.v1.Secret
+	17, // 5: trantor.v1.ListSecretsRequest.updated_after:type_name -> google.protobuf.Timestamp
+	6,  // 6: trantor.v1.ListSecretsResponse.secrets:type_name -> trantor.v1.Secret
+	17, // 7: trantor.v1.UpdateSecretResponse.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 8: trantor.v1.AuthService.Register:input_type -> trantor.v1.RegisterRequest
+	2,  // 9: trantor.v1.AuthService.GetSalt:input_type -> trantor.v1.GetSaltRequest
+	4,  // 10: trantor.v1.AuthService.Login:input_type -> trantor.v1.LoginRequest
+	7,  // 11: trantor.v1.SecretService.CreateSecret:input_type -> trantor.v1.CreateSecretRequest
+	9,  // 12: trantor.v1.SecretService.GetSecret:input_type -> trantor.v1.GetSecretRequest
+	11, // 13: trantor.v1.SecretService.ListSecrets:input_type -> trantor.v1.ListSecretsRequest
+	13, // 14: trantor.v1.SecretService.UpdateSecret:input_type -> trantor.v1.UpdateSecretRequest
+	15, // 15: trantor.v1.SecretService.DeleteSecret:input_type -> trantor.v1.DeleteSecretRequest
+	1,  // 16: trantor.v1.AuthService.Register:output_type -> trantor.v1.RegisterResponse
+	3,  // 17: trantor.v1.AuthService.GetSalt:output_type -> trantor.v1.GetSaltResponse
+	5,  // 18: trantor.v1.AuthService.Login:output_type -> trantor.v1.LoginResponse
+	8,  // 19: trantor.v1.SecretService.CreateSecret:output_type -> trantor.v1.CreateSecretResponse
+	10, // 20: trantor.v1.SecretService.GetSecret:output_type -> trantor.v1.GetSecretResponse
+	12, // 21: trantor.v1.SecretService.ListSecrets:output_type -> trantor.v1.ListSecretsResponse
+	14, // 22: trantor.v1.SecretService.UpdateSecret:output_type -> trantor.v1.UpdateSecretResponse
+	16, // 23: trantor.v1.SecretService.DeleteSecret:output_type -> trantor.v1.DeleteSecretResponse
+	16, // [16:24] is the sub-list for method output_type
+	8,  // [8:16] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_api_trantor_proto_init() }

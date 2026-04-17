@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -36,7 +37,9 @@ func authCtx(t *testing.T, login string) context.Context {
 }
 
 func validSecretReq() *pb.CreateSecretRequest {
+	id := uuid.New().String()
 	return &pb.CreateSecretRequest{
+		Id:    &id,
 		Data:  []byte("encrypted-secret-data"),
 		Nonce: make([]byte, crypto.NonceSize),
 	}
@@ -52,8 +55,27 @@ func TestHandler_CreateSecret(t *testing.T) {
 		assert.NotNil(t, resp.GetCreatedAt())
 	})
 
+	t.Run("идемпотентность", func(t *testing.T) {
+		req := validSecretReq()
+		resp1, err := testSecretClient.CreateSecret(ctx, req)
+		require.NoError(t, err)
+		resp2, err := testSecretClient.CreateSecret(ctx, req)
+		require.NoError(t, err)
+		assert.Equal(t, resp1.GetId(), resp2.GetId())
+		assert.Equal(t, resp1.GetCreatedAt().AsTime(), resp2.GetCreatedAt().AsTime())
+	})
+
 	t.Run("пустые данные", func(t *testing.T) {
-		_, err := testSecretClient.CreateSecret(ctx, &pb.CreateSecretRequest{Nonce: make([]byte, crypto.NonceSize)})
+		id := uuid.New().String()
+		_, err := testSecretClient.CreateSecret(ctx, &pb.CreateSecretRequest{Id: &id, Nonce: make([]byte, crypto.NonceSize)})
+		assertCode(t, err, codes.InvalidArgument)
+	})
+
+	t.Run("без id", func(t *testing.T) {
+		_, err := testSecretClient.CreateSecret(ctx, &pb.CreateSecretRequest{
+			Data:  []byte("data"),
+			Nonce: make([]byte, crypto.NonceSize),
+		})
 		assertCode(t, err, codes.InvalidArgument)
 	})
 
@@ -144,9 +166,53 @@ func TestHandler_DeleteSecret(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("повторное удаление", func(t *testing.T) {
+		id := created.GetId()
+		_, err := testSecretClient.DeleteSecret(ctx, &pb.DeleteSecretRequest{Id: &id})
+		assertCode(t, err, codes.NotFound)
+	})
+
 	t.Run("не найден", func(t *testing.T) {
 		id := "00000000-0000-0000-0000-000000000000"
 		_, err := testSecretClient.DeleteSecret(ctx, &pb.DeleteSecretRequest{Id: &id})
 		assertCode(t, err, codes.NotFound)
+	})
+
+	t.Run("удалённый секрет не возвращается в get", func(t *testing.T) {
+		req := validSecretReq()
+		resp, err := testSecretClient.CreateSecret(ctx, req)
+		require.NoError(t, err)
+		secretID := resp.GetId()
+
+		_, err = testSecretClient.DeleteSecret(ctx, &pb.DeleteSecretRequest{Id: &secretID})
+		require.NoError(t, err)
+
+		_, err = testSecretClient.GetSecret(ctx, &pb.GetSecretRequest{Id: &secretID})
+		assertCode(t, err, codes.NotFound)
+	})
+
+	t.Run("удалённый секрет виден в list с deleted_at", func(t *testing.T) {
+		req := validSecretReq()
+		resp, err := testSecretClient.CreateSecret(ctx, req)
+		require.NoError(t, err)
+		secretID := resp.GetId()
+
+		_, err = testSecretClient.DeleteSecret(ctx, &pb.DeleteSecretRequest{Id: &secretID})
+		require.NoError(t, err)
+
+		list, err := testSecretClient.ListSecrets(ctx, &pb.ListSecretsRequest{})
+		require.NoError(t, err)
+
+		var found *pb.Secret
+		for _, s := range list.GetSecrets() {
+			if s.GetId() == secretID {
+				found = s
+				break
+			}
+		}
+		require.NotNil(t, found, "удалённый секрет должен присутствовать в list")
+		assert.NotNil(t, found.GetDeletedAt(), "deleted_at должен быть установлен")
+		assert.Nil(t, found.Data, "data должна быть обнулена")
+		assert.Nil(t, found.Nonce, "nonce должен быть обнулён")
 	})
 }

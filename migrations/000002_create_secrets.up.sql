@@ -1,8 +1,9 @@
 CREATE TABLE secrets (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    data       BYTEA NOT NULL,    -- AES-GCM(master_key, SecretPayload{Type, Name, Data, Metadata})
-    nonce      BYTEA NOT NULL,
+    id         UUID        PRIMARY KEY,
+    user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    data       BYTEA,                                                          -- NULL если секрет удалён
+    nonce      BYTEA,                                                          -- NULL если секрет удалён
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ                                                     -- NULL если секрет активен
 );

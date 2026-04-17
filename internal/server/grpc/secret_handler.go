@@ -17,11 +17,19 @@ import (
 )
 
 func (h *Handler) CreateSecret(ctx context.Context, req *pb.CreateSecretRequest) (*pb.CreateSecretResponse, error) {
+	if req.GetId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "id is required")
+	}
 	if len(req.GetData()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "data is required")
 	}
 	if len(req.GetNonce()) != crypto.NonceSize {
 		return nil, status.Error(codes.InvalidArgument, "nonce must be 12 bytes")
+	}
+
+	id, err := uuid.Parse(req.GetId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid id")
 	}
 
 	userID, ok := UserIDFromContext(ctx)
@@ -30,7 +38,7 @@ func (h *Handler) CreateSecret(ctx context.Context, req *pb.CreateSecretRequest)
 	}
 
 	secret := &domain.Secret{
-		ID:     uuid.New(),
+		ID:     id,
 		UserID: userID,
 		Data:   req.GetData(),
 		Nonce:  req.GetNonce(),
@@ -41,9 +49,9 @@ func (h *Handler) CreateSecret(ctx context.Context, req *pb.CreateSecretRequest)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
-	id := secret.ID.String()
+	idStr := secret.ID.String()
 	return &pb.CreateSecretResponse{
-		Id:        &id,
+		Id:        &idStr,
 		CreatedAt: timestamppb.New(secret.CreatedAt),
 	}, nil
 }
@@ -168,11 +176,15 @@ func (h *Handler) DeleteSecret(ctx context.Context, req *pb.DeleteSecretRequest)
 // secretToProto конвертирует domain.Secret в proto-сообщение.
 func secretToProto(s *domain.Secret) *pb.Secret {
 	id := s.ID.String()
-	return &pb.Secret{
+	pb := &pb.Secret{
 		Id:        &id,
 		Data:      s.Data,
 		Nonce:     s.Nonce,
 		CreatedAt: timestamppb.New(s.CreatedAt),
 		UpdatedAt: timestamppb.New(s.UpdatedAt),
 	}
+	if s.DeletedAt != nil {
+		pb.DeletedAt = timestamppb.New(*s.DeletedAt)
+	}
+	return pb
 }

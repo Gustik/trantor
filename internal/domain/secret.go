@@ -23,19 +23,22 @@ const (
 
 // Secret представляет зашифрованный секрет пользователя.
 // Поле Data содержит зашифрованный blob — сервер не знает его содержимого.
+// Если DeletedAt != nil — секрет мягко удалён: Data и Nonce обнулены.
 type Secret struct {
-	// ID — уникальный идентификатор секрета.
+	// ID — уникальный идентификатор секрета, назначается клиентом (UUID v4).
 	ID uuid.UUID
 	// UserID — идентификатор владельца секрета.
 	UserID uuid.UUID
-	// Data — зашифрованный blob: AES-GCM(master_key, SecretPayload).
+	// Data — зашифрованный blob: AES-GCM(master_key, SecretPayload). Nil если удалён.
 	Data []byte
-	// Nonce — nonce для расшифровки Data.
+	// Nonce — nonce для расшифровки Data. Nil если удалён.
 	Nonce []byte
 	// CreatedAt — время создания секрета.
 	CreatedAt time.Time
 	// UpdatedAt — время последнего обновления секрета.
 	UpdatedAt time.Time
+	// DeletedAt — время мягкого удаления. Nil если секрет активен.
+	DeletedAt *time.Time
 }
 
 // SecretPayload — структура данных секрета, которую шифрует клиент перед отправкой на сервер.
