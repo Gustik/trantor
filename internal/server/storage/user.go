@@ -1,4 +1,4 @@
-package postgres
+package storage
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/Gustik/trantor/internal/domain"
+	domain "github.com/Gustik/trantor/internal/server/domain"
 )
 
 const pgDuplicateErrorCode = "23505"

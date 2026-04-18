@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Gustik/trantor/internal/domain"
-	"github.com/Gustik/trantor/internal/storage/postgres"
 	"github.com/google/uuid"
+
+	commondomain "github.com/Gustik/trantor/internal/common/domain"
+	domain "github.com/Gustik/trantor/internal/server/domain"
+	"github.com/Gustik/trantor/internal/server/storage"
 )
 
 // secretStorage определяет методы хранилища необходимые сервису секретов.
@@ -44,7 +46,7 @@ func (s *Service) Create(ctx context.Context, secret *domain.Secret) error {
 	secret.UpdatedAt = now
 
 	if err := s.storage.CreateSecret(ctx, secret); err != nil {
-		return fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		return fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
 	return nil
 }
@@ -54,10 +56,10 @@ func (s *Service) Create(ctx context.Context, secret *domain.Secret) error {
 func (s *Service) GetByID(ctx context.Context, id, userID uuid.UUID) (*domain.Secret, error) {
 	secret, err := s.storage.GetSecretByID(ctx, id, userID)
 	if err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			return nil, domain.ErrSecretNotFound
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, commondomain.ErrSecretNotFound
 		}
-		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		return nil, fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
 
 	return secret, nil
@@ -68,7 +70,7 @@ func (s *Service) GetByID(ctx context.Context, id, userID uuid.UUID) (*domain.Se
 func (s *Service) List(ctx context.Context, userID uuid.UUID, updatedAfter time.Time) ([]*domain.Secret, error) {
 	secrets, err := s.storage.ListSecrets(ctx, userID, updatedAfter)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		return nil, fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
 	return secrets, nil
 }
@@ -78,10 +80,10 @@ func (s *Service) List(ctx context.Context, userID uuid.UUID, updatedAfter time.
 func (s *Service) Update(ctx context.Context, secret *domain.Secret) error {
 	secret.UpdatedAt = time.Now().UTC()
 	if err := s.storage.UpdateSecret(ctx, secret); err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			return domain.ErrSecretNotFound
+		if errors.Is(err, storage.ErrNotFound) {
+			return commondomain.ErrSecretNotFound
 		}
-		return fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		return fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
 	return nil
 }
@@ -90,10 +92,10 @@ func (s *Service) Update(ctx context.Context, secret *domain.Secret) error {
 // Возвращает ErrSecretNotFound.
 func (s *Service) Delete(ctx context.Context, id, userID uuid.UUID) error {
 	if err := s.storage.DeleteSecret(ctx, id, userID); err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			return domain.ErrSecretNotFound
+		if errors.Is(err, storage.ErrNotFound) {
+			return commondomain.ErrSecretNotFound
 		}
-		return fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		return fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
 	return nil
 }

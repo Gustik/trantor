@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Gustik/trantor/internal/domain"
-	pgstore "github.com/Gustik/trantor/internal/storage/postgres"
+	commondomain "github.com/Gustik/trantor/internal/common/domain"
+	domain "github.com/Gustik/trantor/internal/server/domain"
+	"github.com/Gustik/trantor/internal/server/storage"
 )
 
 // mockSecretStorage — мок хранилища секретов.
@@ -60,10 +61,10 @@ func TestService_Create(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("успешное создание", func(t *testing.T) {
-		storage := &mockSecretStorage{}
-		storage.On("CreateSecret", ctx, mock.AnythingOfType("*domain.Secret")).Return(nil)
+		store := &mockSecretStorage{}
+		store.On("CreateSecret", ctx, mock.AnythingOfType("*domain.Secret")).Return(nil)
 
-		svc := New(storage)
+		svc := New(store)
 		secret := newTestSecret()
 		err := svc.Create(ctx, secret)
 		require.NoError(t, err)
@@ -72,17 +73,17 @@ func TestService_Create(t *testing.T) {
 		assert.False(t, secret.CreatedAt.IsZero())
 		assert.False(t, secret.UpdatedAt.IsZero())
 		assert.Equal(t, secret.CreatedAt, secret.UpdatedAt)
-		storage.AssertExpectations(t)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("ошибка хранилища", func(t *testing.T) {
-		storage := &mockSecretStorage{}
-		storage.On("CreateSecret", ctx, mock.AnythingOfType("*domain.Secret")).Return(assert.AnError)
+		store := &mockSecretStorage{}
+		store.On("CreateSecret", ctx, mock.AnythingOfType("*domain.Secret")).Return(assert.AnError)
 
-		svc := New(storage)
+		svc := New(store)
 		err := svc.Create(ctx, newTestSecret())
-		assert.ErrorIs(t, err, domain.ErrInternal)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrInternal)
+		store.AssertExpectations(t)
 	})
 }
 
@@ -91,25 +92,25 @@ func TestService_GetByID(t *testing.T) {
 
 	t.Run("найден", func(t *testing.T) {
 		secret := newTestSecret()
-		storage := &mockSecretStorage{}
-		storage.On("GetSecretByID", ctx, secret.ID, secret.UserID).Return(secret, nil)
+		store := &mockSecretStorage{}
+		store.On("GetSecretByID", ctx, secret.ID, secret.UserID).Return(secret, nil)
 
-		svc := New(storage)
+		svc := New(store)
 		got, err := svc.GetByID(ctx, secret.ID, secret.UserID)
 		require.NoError(t, err)
 		assert.Equal(t, secret.ID, got.ID)
-		storage.AssertExpectations(t)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("не найден", func(t *testing.T) {
 		id, userID := uuid.New(), uuid.New()
-		storage := &mockSecretStorage{}
-		storage.On("GetSecretByID", ctx, id, userID).Return(nil, pgstore.ErrNotFound)
+		store := &mockSecretStorage{}
+		store.On("GetSecretByID", ctx, id, userID).Return(nil, storage.ErrNotFound)
 
-		svc := New(storage)
+		svc := New(store)
 		_, err := svc.GetByID(ctx, id, userID)
-		assert.ErrorIs(t, err, domain.ErrSecretNotFound)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrSecretNotFound)
+		store.AssertExpectations(t)
 	})
 }
 
@@ -119,24 +120,24 @@ func TestService_List(t *testing.T) {
 
 	t.Run("возвращает список", func(t *testing.T) {
 		secrets := []*domain.Secret{newTestSecret(), newTestSecret()}
-		storage := &mockSecretStorage{}
-		storage.On("ListSecrets", ctx, userID, time.Time{}).Return(secrets, nil)
+		store := &mockSecretStorage{}
+		store.On("ListSecrets", ctx, userID, time.Time{}).Return(secrets, nil)
 
-		svc := New(storage)
+		svc := New(store)
 		got, err := svc.List(ctx, userID, time.Time{})
 		require.NoError(t, err)
 		assert.Len(t, got, 2)
-		storage.AssertExpectations(t)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("ошибка хранилища", func(t *testing.T) {
-		storage := &mockSecretStorage{}
-		storage.On("ListSecrets", ctx, userID, time.Time{}).Return(nil, assert.AnError)
+		store := &mockSecretStorage{}
+		store.On("ListSecrets", ctx, userID, time.Time{}).Return(nil, assert.AnError)
 
-		svc := New(storage)
+		svc := New(store)
 		_, err := svc.List(ctx, userID, time.Time{})
-		assert.ErrorIs(t, err, domain.ErrInternal)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrInternal)
+		store.AssertExpectations(t)
 	})
 }
 
@@ -145,36 +146,36 @@ func TestService_Update(t *testing.T) {
 
 	t.Run("успешное обновление", func(t *testing.T) {
 		secret := newTestSecret()
-		storage := &mockSecretStorage{}
-		storage.On("UpdateSecret", ctx, secret).Return(nil)
+		store := &mockSecretStorage{}
+		store.On("UpdateSecret", ctx, secret).Return(nil)
 
-		svc := New(storage)
+		svc := New(store)
 		err := svc.Update(ctx, secret)
 		require.NoError(t, err)
 		assert.False(t, secret.UpdatedAt.IsZero())
-		storage.AssertExpectations(t)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("не найден", func(t *testing.T) {
 		secret := newTestSecret()
-		storage := &mockSecretStorage{}
-		storage.On("UpdateSecret", ctx, secret).Return(pgstore.ErrNotFound)
+		store := &mockSecretStorage{}
+		store.On("UpdateSecret", ctx, secret).Return(storage.ErrNotFound)
 
-		svc := New(storage)
+		svc := New(store)
 		err := svc.Update(ctx, secret)
-		assert.ErrorIs(t, err, domain.ErrSecretNotFound)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrSecretNotFound)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("ошибка хранилища", func(t *testing.T) {
 		secret := newTestSecret()
-		storage := &mockSecretStorage{}
-		storage.On("UpdateSecret", ctx, secret).Return(assert.AnError)
+		store := &mockSecretStorage{}
+		store.On("UpdateSecret", ctx, secret).Return(assert.AnError)
 
-		svc := New(storage)
+		svc := New(store)
 		err := svc.Update(ctx, secret)
-		assert.ErrorIs(t, err, domain.ErrInternal)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrInternal)
+		store.AssertExpectations(t)
 	})
 }
 
@@ -183,23 +184,23 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("успешное удаление", func(t *testing.T) {
 		id, userID := uuid.New(), uuid.New()
-		storage := &mockSecretStorage{}
-		storage.On("DeleteSecret", ctx, id, userID).Return(nil)
+		store := &mockSecretStorage{}
+		store.On("DeleteSecret", ctx, id, userID).Return(nil)
 
-		svc := New(storage)
+		svc := New(store)
 		err := svc.Delete(ctx, id, userID)
 		require.NoError(t, err)
-		storage.AssertExpectations(t)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("не найден", func(t *testing.T) {
 		id, userID := uuid.New(), uuid.New()
-		storage := &mockSecretStorage{}
-		storage.On("DeleteSecret", ctx, id, userID).Return(pgstore.ErrNotFound)
+		store := &mockSecretStorage{}
+		store.On("DeleteSecret", ctx, id, userID).Return(storage.ErrNotFound)
 
-		svc := New(storage)
+		svc := New(store)
 		err := svc.Delete(ctx, id, userID)
-		assert.ErrorIs(t, err, domain.ErrSecretNotFound)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrSecretNotFound)
+		store.AssertExpectations(t)
 	})
 }

@@ -12,18 +12,18 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/Gustik/trantor/api/gen/trantor/v1"
-	"github.com/Gustik/trantor/internal/config"
+	"github.com/Gustik/trantor/internal/common/config"
 	"github.com/Gustik/trantor/internal/server/auth"
 	grpchandler "github.com/Gustik/trantor/internal/server/grpc"
 	"github.com/Gustik/trantor/internal/server/secret"
-	"github.com/Gustik/trantor/internal/storage/postgres"
+	"github.com/Gustik/trantor/internal/server/storage"
 )
 
 func main() {
 	srvCfg, dbCfg := loadCfg()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	db, err := postgres.New(ctx, dbCfg)
+	db, err := storage.New(ctx, dbCfg)
 	if err != nil {
 		slog.Error("init DB error", "err", err)
 		os.Exit(1)
@@ -51,7 +51,7 @@ func main() {
 	gracefulStop(grpcServer, cancel, db)
 }
 
-func gracefulStop(g *grpc.Server, cancel context.CancelFunc, d *postgres.Storage) {
+func gracefulStop(g *grpc.Server, cancel context.CancelFunc, d *storage.Storage) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 

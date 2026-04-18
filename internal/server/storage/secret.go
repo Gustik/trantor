@@ -1,4 +1,4 @@
-package postgres
+package storage
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/Gustik/trantor/internal/domain"
+	domain "github.com/Gustik/trantor/internal/server/domain"
 	"github.com/google/uuid"
 )
 

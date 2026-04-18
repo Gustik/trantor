@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Gustik/trantor/internal/domain"
-	pgstore "github.com/Gustik/trantor/internal/storage/postgres"
+	domain "github.com/Gustik/trantor/internal/server/domain"
+	"github.com/Gustik/trantor/internal/server/storage"
 )
 
 func newSecret(userID uuid.UUID) *domain.Secret {
@@ -64,7 +64,7 @@ func TestGetSecretByID(t *testing.T) {
 
 	t.Run("не найден", func(t *testing.T) {
 		_, err := testStore.GetSecretByID(ctx, uuid.New(), userID)
-		assert.ErrorIs(t, err, pgstore.ErrNotFound)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
 	})
 
 	t.Run("чужой секрет", func(t *testing.T) {
@@ -73,7 +73,7 @@ func TestGetSecretByID(t *testing.T) {
 		require.NoError(t, testStore.CreateSecret(ctx, secret))
 
 		_, err := testStore.GetSecretByID(ctx, secret.ID, userID)
-		assert.ErrorIs(t, err, pgstore.ErrNotFound)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
 	})
 }
 
@@ -132,7 +132,7 @@ func TestUpdateSecret(t *testing.T) {
 	t.Run("секрет не найден", func(t *testing.T) {
 		ghost := newSecret(userID)
 		err := testStore.UpdateSecret(ctx, ghost)
-		assert.ErrorIs(t, err, pgstore.ErrNotFound)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
 	})
 }
 
@@ -147,12 +147,12 @@ func TestDeleteSecret(t *testing.T) {
 		require.NoError(t, testStore.DeleteSecret(ctx, secret.ID, userID))
 
 		_, err := testStore.GetSecretByID(ctx, secret.ID, userID)
-		assert.ErrorIs(t, err, pgstore.ErrNotFound)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
 	})
 
 	t.Run("секрет не найден", func(t *testing.T) {
 		err := testStore.DeleteSecret(ctx, uuid.New(), userID)
-		assert.ErrorIs(t, err, pgstore.ErrNotFound)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
 	})
 
 	t.Run("чужой секрет", func(t *testing.T) {
@@ -161,6 +161,6 @@ func TestDeleteSecret(t *testing.T) {
 		require.NoError(t, testStore.CreateSecret(ctx, secret))
 
 		err := testStore.DeleteSecret(ctx, secret.ID, userID)
-		assert.ErrorIs(t, err, pgstore.ErrNotFound)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
 	})
 }

@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Gustik/trantor/internal/domain"
-	pgstore "github.com/Gustik/trantor/internal/storage/postgres"
+	domain "github.com/Gustik/trantor/internal/server/domain"
+	"github.com/Gustik/trantor/internal/server/storage"
 )
 
 func newUser(login string) *domain.User {
@@ -37,7 +37,7 @@ func TestCreateUser(t *testing.T) {
 
 	t.Run("ошибка при создании дубликата", func(t *testing.T) {
 		err := testStore.CreateUser(ctx, newUser("alice"))
-		assert.ErrorIs(t, err, pgstore.ErrDuplicate)
+		assert.ErrorIs(t, err, storage.ErrDuplicate)
 	})
 }
 
@@ -61,6 +61,6 @@ func TestFindUserByLogin(t *testing.T) {
 
 	t.Run("не найден", func(t *testing.T) {
 		_, err := testStore.FindUserByLogin(ctx, "nonexistent")
-		assert.ErrorIs(t, err, pgstore.ErrNotFound)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
 	})
 }

@@ -1,5 +1,5 @@
-// Package vault содержит локальное хранилище секретов на основе SQLite.
-package vault
+// Package storage содержит локальное хранилище секретов на основе SQLite.
+package storage
 
 import (
 	"context"
@@ -11,14 +11,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/Gustik/trantor/internal/domain"
+	cdomain "github.com/Gustik/trantor/internal/client/domain"
+	commondomain "github.com/Gustik/trantor/internal/common/domain"
 )
 
 // Vault реализует локальное хранилище секретов на основе SQLite.
-//
-// TODO: Должно ли локальное хранилище быть здесь,
-// может стоит вынести в storage по аналогии с серверным хранилищем?
-// Или storage/postgres перенести в server?
 type Vault struct {
 	db *sql.DB
 }
@@ -38,70 +35,113 @@ func New(path string) (*Vault, error) {
 	return v, nil
 }
 
-// SaveSecret сохраняет расшифрованный секрет локально.
-// metadata хранится в открытом виде, data — зашифрован мастер-ключом.
-func (v *Vault) SaveSecret(ctx context.Context, payload *domain.SecretPayload, serverID uuid.UUID, updatedAt time.Time) error {
-	meta, err := json.Marshal(payload.Metadata)
+// SaveSecret сохраняет секрет локально.
+func (v *Vault) SaveSecret(ctx context.Context, r *cdomain.Secret) error {
+	meta, err := json.Marshal(r.Metadata)
 	if err != nil {
 		return fmt.Errorf("marshal metadata: %w", err)
 	}
 
+	syncedInt := 0
+	if r.Synced {
+		syncedInt = 1
+	}
+
 	_, err = v.db.ExecContext(ctx, `
-          INSERT INTO secrets (server_id, type, name, data, metadata, updated_at)                                                                                                                                                                                                             
-          VALUES (?, ?, ?, ?, ?, ?)           
-          ON CONFLICT (server_id) DO UPDATE SET
-              type       = excluded.type,
-              name       = excluded.name,                                                                                                                                                                                                                                                     
-              data       = excluded.data,     
-              metadata   = excluded.metadata,                                                                                                                                                                                                                                                 
-              updated_at = excluded.updated_at
-      `, serverID.String(), payload.Type, payload.Name, payload.Data, meta, updatedAt.Unix())
+		INSERT INTO secrets (id, type, name, data, data_nonce, metadata, updated_at, synced)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT (id) DO UPDATE SET
+			type       = excluded.type,
+			name       = excluded.name,
+			data       = excluded.data,
+			data_nonce = excluded.data_nonce,
+			metadata   = excluded.metadata,
+			updated_at = excluded.updated_at,
+			synced     = excluded.synced
+	`, r.ID.String(), r.Type, r.Name, r.Data, r.DataNonce, meta, r.UpdatedAt.Unix(), syncedInt)
 	if err != nil {
 		return fmt.Errorf("save secret: %w", err)
 	}
 	return nil
 }
 
-// GetSecret возвращает локально сохранённый секрет по serverID.
-func (v *Vault) GetSecret(ctx context.Context, serverID uuid.UUID) (*domain.SecretPayload, error) {
-	row := v.db.QueryRowContext(ctx, `SELECT type, name, data, metadata FROM secrets WHERE server_id = ?`,
-		serverID.String())
+// MarkSynced помечает секрет как синхронизированный с сервером.
+func (v *Vault) MarkSynced(ctx context.Context, id uuid.UUID) error {
+	_, err := v.db.ExecContext(ctx, `UPDATE secrets SET synced = 1 WHERE id = ?`, id.String())
+	if err != nil {
+		return fmt.Errorf("mark synced: %w", err)
+	}
+	return nil
+}
 
-	payload, err := scanSecret(row.Scan)
+// ListUnsynced возвращает ID секретов, ещё не отправленных на сервер.
+func (v *Vault) ListUnsynced(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := v.db.QueryContext(ctx, `SELECT id FROM secrets WHERE synced = 0`)
+	if err != nil {
+		return nil, fmt.Errorf("list unsynced: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []uuid.UUID
+	for rows.Next() {
+		var raw string
+		if err := rows.Scan(&raw); err != nil {
+			return nil, fmt.Errorf("scan id: %w", err)
+		}
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return nil, fmt.Errorf("parse id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list unsynced: %w", err)
+	}
+	return ids, nil
+}
+
+// GetSecret возвращает локально сохранённый секрет по ID.
+func (v *Vault) GetSecret(ctx context.Context, id uuid.UUID) (*cdomain.Secret, error) {
+	row := v.db.QueryRowContext(ctx,
+		`SELECT id, type, name, data, data_nonce, metadata, updated_at, synced FROM secrets WHERE id = ?`,
+		id.String())
+
+	r, err := scanSecret(row.Scan)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, domain.ErrSecretNotFound
+			return nil, commondomain.ErrSecretNotFound
 		}
 		return nil, err
 	}
-	return payload, nil
+	return r, nil
 }
 
 // ListSecrets возвращает все локально сохранённые секреты.
-func (v *Vault) ListSecrets(ctx context.Context) ([]*domain.SecretPayload, error) {
-	rows, err := v.db.QueryContext(ctx, `SELECT type, name, data, metadata FROM secrets`)
+func (v *Vault) ListSecrets(ctx context.Context) ([]*cdomain.Secret, error) {
+	rows, err := v.db.QueryContext(ctx,
+		`SELECT id, type, name, data, data_nonce, metadata, updated_at, synced FROM secrets`)
 	if err != nil {
 		return nil, fmt.Errorf("list secrets: %w", err)
 	}
 	defer rows.Close()
 
-	var result []*domain.SecretPayload
+	var secrets []*cdomain.Secret
 	for rows.Next() {
-		payload, err := scanSecret(rows.Scan)
+		r, err := scanSecret(rows.Scan)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, payload)
+		secrets = append(secrets, r)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("list secrets: %w", err)
 	}
-	return result, nil
+	return secrets, nil
 }
 
 // DeleteSecret удаляет локально сохранённый секрет по serverID.
 func (v *Vault) DeleteSecret(ctx context.Context, serverID uuid.UUID) error {
-	_, err := v.db.ExecContext(ctx, `DELETE FROM secrets WHERE server_id = ?`, serverID.String())
+	_, err := v.db.ExecContext(ctx, `DELETE FROM secrets WHERE id = ?`, serverID.String())
 	if err != nil {
 		return fmt.Errorf("delete secret: %w", err)
 	}
@@ -151,7 +191,7 @@ func (v *Vault) GetAuthToken(ctx context.Context) (string, error) {
 	err := v.db.QueryRowContext(ctx, `SELECT value FROM meta WHERE key = 'auth_token'`).Scan(&token)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", domain.ErrNotAuthenticated
+			return "", commondomain.ErrNotAuthenticated
 		}
 		return "", fmt.Errorf("get auth token: %w", err)
 	}
@@ -163,30 +203,43 @@ func (v *Vault) Close() error {
 	return v.db.Close()
 }
 
-// scanSecret сканирует строку из БД в SecretPayload.
-func scanSecret(scan func(...any) error) (*domain.SecretPayload, error) {
+// scanSecret сканирует строку из БД в cdomain.Secret.
+func scanSecret(scan func(...any) error) (*cdomain.Secret, error) {
 	var metaJSON []byte
-	payload := &domain.SecretPayload{}
+	var idRaw string
+	var updatedAtUnix int64
+	var syncedInt int
+	r := &cdomain.Secret{}
 
-	if err := scan(&payload.Type, &payload.Name, &payload.Data, &metaJSON); err != nil {
+	err := scan(&idRaw, &r.Type, &r.Name, &r.Data, &r.DataNonce, &metaJSON, &updatedAtUnix, &syncedInt)
+	if err != nil {
 		return nil, fmt.Errorf("scan secret: %w", err)
 	}
-	if err := json.Unmarshal(metaJSON, &payload.Metadata); err != nil {
+	id, err := uuid.Parse(idRaw)
+	if err != nil {
+		return nil, fmt.Errorf("parse id: %w", err)
+	}
+	if err := json.Unmarshal(metaJSON, &r.Metadata); err != nil {
 		return nil, fmt.Errorf("unmarshal metadata: %w", err)
 	}
-	return payload, nil
+	r.ID = id
+	r.UpdatedAt = time.Unix(updatedAtUnix, 0).UTC()
+	r.Synced = syncedInt == 1
+	return r, nil
 }
 
 // migrate создаёт таблицы если они не существуют.
 func (v *Vault) migrate(ctx context.Context) error {
 	_, err := v.db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS secrets (
-			server_id  TEXT    PRIMARY KEY,
+			id         TEXT    PRIMARY KEY,
 			type       TEXT    NOT NULL,
 			name       TEXT    NOT NULL,
 			data       BLOB    NOT NULL,
+			data_nonce BLOB    NOT NULL,
 			metadata   TEXT    NOT NULL DEFAULT '{}',
-			updated_at INTEGER NOT NULL
+			updated_at INTEGER NOT NULL,
+			synced     INTEGER NOT NULL DEFAULT 0
 		);
 
 		CREATE TABLE IF NOT EXISTS meta (

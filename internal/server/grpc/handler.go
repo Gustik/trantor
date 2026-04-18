@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	v1 "github.com/Gustik/trantor/api/gen/trantor/v1"
-	"github.com/Gustik/trantor/internal/domain"
+	domain "github.com/Gustik/trantor/internal/server/domain"
 )
 
 // authService определяет методы сервиса аутентификации необходимые gRPC-обработчику.

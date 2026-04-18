@@ -11,8 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/Gustik/trantor/internal/domain"
-	pgstore "github.com/Gustik/trantor/internal/storage/postgres"
+	commondomain "github.com/Gustik/trantor/internal/common/domain"
+	domain "github.com/Gustik/trantor/internal/server/domain"
+	"github.com/Gustik/trantor/internal/server/storage"
 )
 
 // mockUserStorage — мок хранилища пользователей.
@@ -56,10 +57,10 @@ func TestService_Register(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("успешная регистрация", func(t *testing.T) {
-		storage := &mockUserStorage{}
-		storage.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil)
+		store := &mockUserStorage{}
+		store.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil)
 
-		svc := New(storage)
+		svc := New(store)
 		user := newTestUser()
 		rawKey := user.AuthKeyHash
 
@@ -69,27 +70,27 @@ func TestService_Register(t *testing.T) {
 		// AuthKeyHash должен стать bcrypt-хешем
 		assert.NotEqual(t, rawKey, user.AuthKeyHash)
 		assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(user.AuthKeyHash), []byte(rawKey)))
-		storage.AssertExpectations(t)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("логин уже занят", func(t *testing.T) {
-		storage := &mockUserStorage{}
-		storage.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(pgstore.ErrDuplicate)
+		store := &mockUserStorage{}
+		store.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(storage.ErrDuplicate)
 
-		svc := New(storage)
+		svc := New(store)
 		err := svc.Register(ctx, newTestUser())
-		assert.ErrorIs(t, err, domain.ErrUserAlreadyExists)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrUserAlreadyExists)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("ошибка хранилища", func(t *testing.T) {
-		storage := &mockUserStorage{}
-		storage.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(assert.AnError)
+		store := &mockUserStorage{}
+		store.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(assert.AnError)
 
-		svc := New(storage)
+		svc := New(store)
 		err := svc.Register(ctx, newTestUser())
-		assert.ErrorIs(t, err, domain.ErrInternal)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrInternal)
+		store.AssertExpectations(t)
 	})
 }
 
@@ -98,24 +99,24 @@ func TestService_GetSalt(t *testing.T) {
 
 	t.Run("успешно", func(t *testing.T) {
 		user := newTestUser()
-		storage := &mockUserStorage{}
-		storage.On("FindUserByLogin", ctx, user.Login).Return(user, nil)
+		store := &mockUserStorage{}
+		store.On("FindUserByLogin", ctx, user.Login).Return(user, nil)
 
-		svc := New(storage)
+		svc := New(store)
 		salt, err := svc.GetSalt(ctx, user.Login)
 		require.NoError(t, err)
 		assert.Equal(t, user.Argon2Salt, salt)
-		storage.AssertExpectations(t)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("пользователь не найден", func(t *testing.T) {
-		storage := &mockUserStorage{}
-		storage.On("FindUserByLogin", ctx, "nobody").Return(nil, pgstore.ErrNotFound)
+		store := &mockUserStorage{}
+		store.On("FindUserByLogin", ctx, "nobody").Return(nil, storage.ErrNotFound)
 
-		svc := New(storage)
+		svc := New(store)
 		_, err := svc.GetSalt(ctx, "nobody")
-		assert.ErrorIs(t, err, domain.ErrUserNotFound)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrUserNotFound)
+		store.AssertExpectations(t)
 	})
 }
 
@@ -130,34 +131,34 @@ func TestService_Login(t *testing.T) {
 	user.AuthKeyHash = string(hash)
 
 	t.Run("успешный логин", func(t *testing.T) {
-		storage := &mockUserStorage{}
-		storage.On("FindUserByLogin", ctx, user.Login).Return(user, nil)
+		store := &mockUserStorage{}
+		store.On("FindUserByLogin", ctx, user.Login).Return(user, nil)
 
-		svc := New(storage)
+		svc := New(store)
 		got, err := svc.Login(ctx, user.Login, rawKey)
 		require.NoError(t, err)
 		assert.Equal(t, user.ID, got.ID)
-		storage.AssertExpectations(t)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("неверный auth_key", func(t *testing.T) {
-		storage := &mockUserStorage{}
-		storage.On("FindUserByLogin", ctx, user.Login).Return(user, nil)
+		store := &mockUserStorage{}
+		store.On("FindUserByLogin", ctx, user.Login).Return(user, nil)
 
-		svc := New(storage)
+		svc := New(store)
 		_, err := svc.Login(ctx, user.Login, []byte("wrong-key"))
-		assert.ErrorIs(t, err, domain.ErrInvalidCredentials)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrInvalidCredentials)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("пользователь не найден", func(t *testing.T) {
-		storage := &mockUserStorage{}
-		storage.On("FindUserByLogin", ctx, "nobody").Return(nil, pgstore.ErrNotFound)
+		store := &mockUserStorage{}
+		store.On("FindUserByLogin", ctx, "nobody").Return(nil, storage.ErrNotFound)
 
-		svc := New(storage)
+		svc := New(store)
 		_, err := svc.Login(ctx, "nobody", rawKey)
-		assert.ErrorIs(t, err, domain.ErrUserNotFound)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrUserNotFound)
+		store.AssertExpectations(t)
 	})
 }
 
@@ -166,24 +167,24 @@ func TestService_GetUserByID(t *testing.T) {
 
 	t.Run("найден", func(t *testing.T) {
 		user := newTestUser()
-		storage := &mockUserStorage{}
-		storage.On("FindUserByID", ctx, user.ID).Return(user, nil)
+		store := &mockUserStorage{}
+		store.On("FindUserByID", ctx, user.ID).Return(user, nil)
 
-		svc := New(storage)
+		svc := New(store)
 		got, err := svc.GetUserByID(ctx, user.ID)
 		require.NoError(t, err)
 		assert.Equal(t, user.ID, got.ID)
-		storage.AssertExpectations(t)
+		store.AssertExpectations(t)
 	})
 
 	t.Run("не найден", func(t *testing.T) {
 		id := uuid.New()
-		storage := &mockUserStorage{}
-		storage.On("FindUserByID", ctx, id).Return(nil, pgstore.ErrNotFound)
+		store := &mockUserStorage{}
+		store.On("FindUserByID", ctx, id).Return(nil, storage.ErrNotFound)
 
-		svc := New(storage)
+		svc := New(store)
 		_, err := svc.GetUserByID(ctx, id)
-		assert.ErrorIs(t, err, domain.ErrUserNotFound)
-		storage.AssertExpectations(t)
+		assert.ErrorIs(t, err, commondomain.ErrUserNotFound)
+		store.AssertExpectations(t)
 	})
 }

@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/Gustik/trantor/api/gen/trantor/v1"
-	"github.com/Gustik/trantor/internal/domain"
+	"github.com/Gustik/trantor/internal/common/domain"
 )
 
 func TestToAuthError(t *testing.T) {

@@ -16,8 +16,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/Gustik/trantor/api/gen/trantor/v1"
-	"github.com/Gustik/trantor/internal/config"
-	"github.com/Gustik/trantor/internal/domain"
+	commondomain "github.com/Gustik/trantor/internal/common/domain"
+	"github.com/Gustik/trantor/internal/common/config"
+	sdomain "github.com/Gustik/trantor/internal/server/domain"
 )
 
 // Client реализует gRPC-соединение с сервером Trantor.
@@ -93,19 +94,22 @@ func (c *Client) Login(ctx context.Context, login string, authKey []byte) (token
 }
 
 // CreateSecret отправляет зашифрованный секрет на сервер.
-func (c *Client) CreateSecret(ctx context.Context, token string, data, nonce []byte) (id string, err error) {
-	r, err := c.secret.CreateSecret(withToken(ctx, token), &pb.CreateSecretRequest{
+// id генерируется клиентом — запрос идемпотентен при повторной отправке.
+func (c *Client) CreateSecret(ctx context.Context, token string, id uuid.UUID, data, nonce []byte) error {
+	idStr := id.String()
+	_, err := c.secret.CreateSecret(withToken(ctx, token), &pb.CreateSecretRequest{
+		Id:    &idStr,
 		Data:  data,
 		Nonce: nonce,
 	})
 	if err != nil {
-		return "", toSecretError(err)
+		return toSecretError(err)
 	}
-	return *r.Id, nil
+	return nil
 }
 
 // GetSecret запрашивает секрет с сервера по ID.
-func (c *Client) GetSecret(ctx context.Context, token, id string) (*domain.Secret, error) {
+func (c *Client) GetSecret(ctx context.Context, token, id string) (*sdomain.Secret, error) {
 	r, err := c.secret.GetSecret(withToken(ctx, token), &pb.GetSecretRequest{
 		Id: &id,
 	})
@@ -116,7 +120,7 @@ func (c *Client) GetSecret(ctx context.Context, token, id string) (*domain.Secre
 }
 
 // ListSecrets запрашивает список секретов с сервера изменённых после updatedAfter.
-func (c *Client) ListSecrets(ctx context.Context, token string, updatedAfter time.Time) ([]*domain.Secret, error) {
+func (c *Client) ListSecrets(ctx context.Context, token string, updatedAfter time.Time) ([]*sdomain.Secret, error) {
 	var updatedAfterProto *timestamppb.Timestamp
 	if !updatedAfter.IsZero() {
 		updatedAfterProto = timestamppb.New(updatedAfter)
@@ -129,7 +133,7 @@ func (c *Client) ListSecrets(ctx context.Context, token string, updatedAfter tim
 		return nil, toSecretError(err)
 	}
 
-	secrets := make([]*domain.Secret, 0, len(r.GetSecrets()))
+	secrets := make([]*sdomain.Secret, 0, len(r.GetSecrets()))
 	for _, s := range r.GetSecrets() {
 		secret, err := protoToSecret(s)
 		if err != nil {
@@ -169,35 +173,41 @@ func withToken(ctx context.Context, token string) context.Context {
 	return metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
 }
 
-// protoToSecret конвертирует proto-сообщение в domain.Secret.
-func protoToSecret(s *pb.Secret) (*domain.Secret, error) {
+// protoToSecret конвертирует proto-сообщение в sdomain.Secret.
+func protoToSecret(s *pb.Secret) (*sdomain.Secret, error) {
 	id, err := uuid.Parse(s.GetId())
 	if err != nil {
-		return nil, domain.ErrInternal
+		return nil, commondomain.ErrInternal
 	}
-	return &domain.Secret{
+	secret := &sdomain.Secret{
 		ID:        id,
 		Data:      s.GetData(),
 		Nonce:     s.GetNonce(),
 		CreatedAt: s.GetCreatedAt().AsTime(),
 		UpdatedAt: s.GetUpdatedAt().AsTime(),
-	}, nil
+	}
+	if s.GetDeletedAt() != nil {
+		t := s.GetDeletedAt().AsTime()
+		secret.DeletedAt = &t
+	}
+	return secret, nil
 }
 
 // TODO: походу каст ошибок надо вынести на уровень сервиса?
+//
 //	Должен ли сервис знать коды ошибок protobuf?
 
 // toAuthError транслирует gRPC-ошибку auth-методов в доменную.
 func toAuthError(err error) error {
 	switch status.Code(err) {
 	case codes.NotFound:
-		return domain.ErrUserNotFound
+		return commondomain.ErrUserNotFound
 	case codes.AlreadyExists:
-		return domain.ErrUserAlreadyExists
+		return commondomain.ErrUserAlreadyExists
 	case codes.Unauthenticated:
-		return domain.ErrInvalidCredentials
+		return commondomain.ErrInvalidCredentials
 	default:
-		return domain.ErrInternal
+		return commondomain.ErrInternal
 	}
 }
 
@@ -205,10 +215,10 @@ func toAuthError(err error) error {
 func toSecretError(err error) error {
 	switch status.Code(err) {
 	case codes.NotFound:
-		return domain.ErrSecretNotFound
+		return commondomain.ErrSecretNotFound
 	case codes.Unauthenticated:
-		return domain.ErrInvalidCredentials
+		return commondomain.ErrInvalidCredentials
 	default:
-		return domain.ErrInternal
+		return commondomain.ErrInternal
 	}
 }

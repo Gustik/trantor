@@ -10,7 +10,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	pb "github.com/Gustik/trantor/api/gen/trantor/v1"
-	"github.com/Gustik/trantor/internal/domain"
+	commondomain "github.com/Gustik/trantor/internal/common/domain"
+	domain "github.com/Gustik/trantor/internal/server/domain"
 	"github.com/Gustik/trantor/pkg/crypto"
 	"github.com/Gustik/trantor/pkg/jwt"
 )
@@ -42,7 +43,7 @@ func (h *Handler) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 	}
 
 	if err := h.auth.Register(ctx, user); err != nil {
-		if errors.Is(err, domain.ErrUserAlreadyExists) {
+		if errors.Is(err, commondomain.ErrUserAlreadyExists) {
 			return nil, status.Error(codes.AlreadyExists, "user already exists")
 		}
 		slog.ErrorContext(ctx, "register user", "err", err)
@@ -64,7 +65,7 @@ func (h *Handler) GetSalt(ctx context.Context, req *pb.GetSaltRequest) (*pb.GetS
 	}
 	salt, err := h.auth.GetSalt(ctx, req.GetLogin())
 	if err != nil {
-		if errors.Is(err, domain.ErrUserNotFound) {
+		if errors.Is(err, commondomain.ErrUserNotFound) {
 			return nil, status.Error(codes.NotFound, "user not found")
 		}
 		slog.ErrorContext(ctx, "get salt", "err", err)
@@ -82,10 +83,10 @@ func (h *Handler) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 	}
 	user, err := h.auth.Login(ctx, req.GetLogin(), req.GetAuthKey())
 	if err != nil {
-		if errors.Is(err, domain.ErrUserNotFound) {
+		if errors.Is(err, commondomain.ErrUserNotFound) {
 			return nil, status.Error(codes.NotFound, "user not found")
 		}
-		if errors.Is(err, domain.ErrInvalidCredentials) {
+		if errors.Is(err, commondomain.ErrInvalidCredentials) {
 			return nil, status.Error(codes.Unauthenticated, "wrong credentials")
 		}
 		slog.ErrorContext(ctx, "login user", "err", err)

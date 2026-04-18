@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Gustik/trantor/internal/domain"
-	"github.com/Gustik/trantor/internal/storage/postgres"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+
+	commondomain "github.com/Gustik/trantor/internal/common/domain"
+	domain "github.com/Gustik/trantor/internal/server/domain"
+	"github.com/Gustik/trantor/internal/server/storage"
 )
 
 // userStorage определяет методы хранилища необходимые сервису аутентификации.
@@ -39,17 +41,17 @@ func New(storage userStorage) *Service {
 func (s *Service) Register(ctx context.Context, user *domain.User) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(user.AuthKeyHash), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		return fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
 
 	user.AuthKeyHash = string(hash)
 	user.CreatedAt = time.Now().UTC()
 
 	if err := s.storage.CreateUser(ctx, user); err != nil {
-		if errors.Is(err, postgres.ErrDuplicate) {
-			return domain.ErrUserAlreadyExists
+		if errors.Is(err, storage.ErrDuplicate) {
+			return commondomain.ErrUserAlreadyExists
 		}
-		return fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		return fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
 	return nil
 }
@@ -59,10 +61,10 @@ func (s *Service) Register(ctx context.Context, user *domain.User) error {
 func (s *Service) GetSalt(ctx context.Context, login string) ([]byte, error) {
 	user, err := s.storage.FindUserByLogin(ctx, login)
 	if err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			return nil, domain.ErrUserNotFound
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, commondomain.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		return nil, fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
 	return user.Argon2Salt, nil
 }
@@ -72,14 +74,14 @@ func (s *Service) GetSalt(ctx context.Context, login string) ([]byte, error) {
 func (s *Service) Login(ctx context.Context, login string, authKey []byte) (*domain.User, error) {
 	user, err := s.storage.FindUserByLogin(ctx, login)
 	if err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			return nil, domain.ErrUserNotFound
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, commondomain.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		return nil, fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
 
 	if err = bcrypt.CompareHashAndPassword([]byte(user.AuthKeyHash), authKey); err != nil {
-		return nil, domain.ErrInvalidCredentials
+		return nil, commondomain.ErrInvalidCredentials
 	}
 
 	return user, nil
@@ -89,10 +91,10 @@ func (s *Service) Login(ctx context.Context, login string, authKey []byte) (*dom
 func (s *Service) GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	user, err := s.storage.FindUserByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			return nil, domain.ErrUserNotFound
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, commondomain.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		return nil, fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
 
 	return user, nil

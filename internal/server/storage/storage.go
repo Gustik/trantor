@@ -1,11 +1,11 @@
-// Package postgres содержит реализацию хранилища на основе PostgreSQL.
-package postgres
+// Package storage содержит реализацию хранилища на основе PostgreSQL.
+package storage
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/Gustik/trantor/internal/config"
+	"github.com/Gustik/trantor/internal/common/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

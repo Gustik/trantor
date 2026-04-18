@@ -19,11 +19,11 @@ import (
 	"net"
 
 	pb "github.com/Gustik/trantor/api/gen/trantor/v1"
-	"github.com/Gustik/trantor/internal/config"
+	"github.com/Gustik/trantor/internal/common/config"
 	"github.com/Gustik/trantor/internal/server/auth"
 	grpchandler "github.com/Gustik/trantor/internal/server/grpc"
 	"github.com/Gustik/trantor/internal/server/secret"
-	pgstore "github.com/Gustik/trantor/internal/storage/postgres"
+	pgstore "github.com/Gustik/trantor/internal/server/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
