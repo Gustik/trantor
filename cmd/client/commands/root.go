@@ -22,11 +22,13 @@ type deps struct {
 	client    *grpcclient.Client
 	authSvc   *auth.Service
 	masterKey []byte
+	version   string
+	buildDate string
 }
 
 // New возвращает корневую cobra-команду со всеми подкомандами.
-func New() *cobra.Command {
-	d := &deps{}
+func New(version, buildDate string) *cobra.Command {
+	d := &deps{version: version, buildDate: buildDate}
 
 	root := &cobra.Command{
 		Use:   "trantor",
@@ -47,6 +49,7 @@ func New() *cobra.Command {
 	root.AddCommand(newRegisterCmd(d))
 	root.AddCommand(newLoginCmd(d))
 	root.AddCommand(newSecretCmd(d))
+	root.AddCommand(newVersionCmd(d))
 
 	return root
 }
@@ -98,6 +101,7 @@ func newInteractiveRoot(d *deps) *cobra.Command {
 	root.AddCommand(newRegisterCmd(d))
 	root.AddCommand(newLoginCmd(d))
 	root.AddCommand(newSecretCmd(d))
+	root.AddCommand(newVersionCmd(d))
 	return root
 }
 

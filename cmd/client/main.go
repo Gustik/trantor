@@ -10,8 +10,16 @@ import (
 	"github.com/Gustik/trantor/cmd/client/commands"
 )
 
+// Заполняются через ldflags при сборке:
+//
+//	-X main.version=v1.0.0 -X main.buildDate=2026-04-23
+var (
+	version   = "dev"
+	buildDate = "unknown"
+)
+
 func main() {
-	if err := commands.New().Execute(); err != nil {
+	if err := commands.New(version, buildDate).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

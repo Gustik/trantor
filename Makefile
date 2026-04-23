@@ -1,5 +1,9 @@
 MIGRATE=migrate -path migrations -database "postgres://trantor:trantor@localhost:5432/trantor?sslmode=disable"
 
+VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+BUILD_DATE = $(shell date -u +%Y-%m-%d)
+LDFLAGS    = -X main.version=$(VERSION) -X main.buildDate=$(BUILD_DATE)
+
 .PHONY: build-server build-client build test test-integration lint proto migrate psql
 
 # Сборка сервера
@@ -8,7 +12,7 @@ build-server:
 
 # Сборка клиента
 build-client:
-	go build -o bin/client ./cmd/client
+	go build -ldflags "$(LDFLAGS)" -o bin/client ./cmd/client
 
 # Сборка обоих бинарников
 build: build-server build-client
