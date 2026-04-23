@@ -1,6 +1,6 @@
 MIGRATE=migrate -path migrations -database "postgres://trantor:trantor@localhost:5432/trantor?sslmode=disable"
 
-.PHONY: build-server build-client build test test-integration lint proto migrate
+.PHONY: build-server build-client build test test-integration lint proto migrate psql
 
 # Сборка сервера
 build-server:
@@ -47,6 +47,10 @@ proto:
 # Генерация документации из proto
 docs:
 	protoc --doc_out=./docs --doc_opt=markdown,api.md api/trantor.proto
+
+# Подключение к psql
+psql:
+	docker compose exec postgres psql -U trantor -d trantor
 
 # Применение всех миграций
 migrate:

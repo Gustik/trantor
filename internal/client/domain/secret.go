@@ -2,6 +2,7 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,3 +31,9 @@ type Secret struct {
 	// Synced — true если секрет отправлен на сервер.
 	Synced bool
 }
+
+// Ошибки доменного слоя для секретов.
+var (
+	// ErrSecretNotFound возвращается когда секрет не найден.
+	ErrSecretNotFound = errors.New("секрет не найден")
+)

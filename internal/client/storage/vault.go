@@ -11,8 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
-	cdomain "github.com/Gustik/trantor/internal/client/domain"
-	commondomain "github.com/Gustik/trantor/internal/common/domain"
+	"github.com/Gustik/trantor/internal/client/domain"
 )
 
 // Vault реализует локальное хранилище секретов на основе SQLite.
@@ -36,7 +35,7 @@ func New(path string) (*Vault, error) {
 }
 
 // SaveSecret сохраняет секрет локально.
-func (v *Vault) SaveSecret(ctx context.Context, r *cdomain.Secret) error {
+func (v *Vault) SaveSecret(ctx context.Context, r *domain.Secret) error {
 	meta, err := json.Marshal(r.Metadata)
 	if err != nil {
 		return fmt.Errorf("marshal metadata: %w", err)
@@ -101,7 +100,7 @@ func (v *Vault) ListUnsynced(ctx context.Context) ([]uuid.UUID, error) {
 }
 
 // GetSecret возвращает локально сохранённый секрет по ID.
-func (v *Vault) GetSecret(ctx context.Context, id uuid.UUID) (*cdomain.Secret, error) {
+func (v *Vault) GetSecret(ctx context.Context, id uuid.UUID) (*domain.Secret, error) {
 	row := v.db.QueryRowContext(ctx,
 		`SELECT id, type, name, data, data_nonce, metadata, updated_at, synced FROM secrets WHERE id = ?`,
 		id.String())
@@ -109,7 +108,7 @@ func (v *Vault) GetSecret(ctx context.Context, id uuid.UUID) (*cdomain.Secret, e
 	r, err := scanSecret(row.Scan)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, commondomain.ErrSecretNotFound
+			return nil, fmt.Errorf("get secret: %w", ErrNotFound)
 		}
 		return nil, err
 	}
@@ -117,15 +116,15 @@ func (v *Vault) GetSecret(ctx context.Context, id uuid.UUID) (*cdomain.Secret, e
 }
 
 // ListSecrets возвращает все локально сохранённые секреты.
-func (v *Vault) ListSecrets(ctx context.Context) ([]*cdomain.Secret, error) {
+func (v *Vault) ListSecrets(ctx context.Context) ([]*domain.Secret, error) {
 	rows, err := v.db.QueryContext(ctx,
 		`SELECT id, type, name, data, data_nonce, metadata, updated_at, synced FROM secrets`)
 	if err != nil {
-		return nil, fmt.Errorf("list secrets: %w", err)
+		return nil, fmt.Errorf("execute query in list secrets: %w", err)
 	}
 	defer rows.Close()
 
-	var secrets []*cdomain.Secret
+	var secrets []*domain.Secret
 	for rows.Next() {
 		r, err := scanSecret(rows.Scan)
 		if err != nil {
@@ -191,7 +190,7 @@ func (v *Vault) GetAuthToken(ctx context.Context) (string, error) {
 	err := v.db.QueryRowContext(ctx, `SELECT value FROM meta WHERE key = 'auth_token'`).Scan(&token)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", commondomain.ErrNotAuthenticated
+			return "", fmt.Errorf("get auth token: %w", ErrNotFound)
 		}
 		return "", fmt.Errorf("get auth token: %w", err)
 	}
@@ -204,12 +203,12 @@ func (v *Vault) Close() error {
 }
 
 // scanSecret сканирует строку из БД в cdomain.Secret.
-func scanSecret(scan func(...any) error) (*cdomain.Secret, error) {
+func scanSecret(scan func(...any) error) (*domain.Secret, error) {
 	var metaJSON []byte
 	var idRaw string
 	var updatedAtUnix int64
 	var syncedInt int
-	r := &cdomain.Secret{}
+	r := &domain.Secret{}
 
 	err := scan(&idRaw, &r.Type, &r.Name, &r.Data, &r.DataNonce, &metaJSON, &updatedAtUnix, &syncedInt)
 	if err != nil {
