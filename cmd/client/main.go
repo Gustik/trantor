@@ -7,7 +7,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/Gustik/trantor/cmd/client/commands"
+	"github.com/Gustik/trantor/cmd/client/tui"
 )
 
 // Заполняются через ldflags при сборке:
@@ -19,7 +19,11 @@ var (
 )
 
 func main() {
-	if err := commands.New(version, buildDate).Execute(); err != nil {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Printf("trantor %s (built %s)\n", version, buildDate)
+		return
+	}
+	if err := tui.Start(version, buildDate); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

@@ -238,6 +238,15 @@ func (v *Vault) GetAuthCache(ctx context.Context) (salt, encryptedMasterKey, mas
 	return result["argon2_salt"], result["encrypted_master_key"], result["master_key_nonce"], nil
 }
 
+// Clear удаляет все данные из vault — используется при logout.
+func (v *Vault) Clear(ctx context.Context) error {
+	_, err := v.db.ExecContext(ctx, `DELETE FROM secrets; DELETE FROM meta;`)
+	if err != nil {
+		return fmt.Errorf("clear vault: %w", err)
+	}
+	return nil
+}
+
 // Close закрывает бд
 func (v *Vault) Close() error {
 	return v.db.Close()
