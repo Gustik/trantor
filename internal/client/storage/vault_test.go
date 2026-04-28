@@ -87,7 +87,7 @@ func TestGetSecret_NotFound(t *testing.T) {
 	v := newTestVault(t)
 
 	_, err := v.GetSecret(context.Background(), uuid.New())
-	assert.ErrorIs(t, err, commondomain.ErrSecretNotFound)
+	assert.ErrorIs(t, err, ErrNotFound)
 }
 
 func TestListSecrets(t *testing.T) {
@@ -124,7 +124,7 @@ func TestDeleteSecret(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = v.GetSecret(ctx, r.ID)
-	assert.ErrorIs(t, err, commondomain.ErrSecretNotFound)
+	assert.ErrorIs(t, err, ErrNotFound)
 }
 
 func TestMarkSyncedAndListUnsynced(t *testing.T) {

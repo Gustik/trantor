@@ -4,6 +4,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -195,6 +196,46 @@ func (v *Vault) GetAuthToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("get auth token: %w", err)
 	}
 	return token, nil
+}
+
+// SetAuthCache сохраняет данные необходимые для восстановления мастер-ключа без обращения к серверу.
+func (v *Vault) SetAuthCache(ctx context.Context, salt, encryptedMasterKey, masterKeyNonce []byte) error {
+	entries := map[string][]byte{
+		"argon2_salt":          salt,
+		"encrypted_master_key": encryptedMasterKey,
+		"master_key_nonce":     masterKeyNonce,
+	}
+	for key, val := range entries {
+		_, err := v.db.ExecContext(ctx, `
+			INSERT INTO meta (key, value) VALUES (?, ?)
+			ON CONFLICT (key) DO UPDATE SET value = excluded.value
+		`, key, base64.StdEncoding.EncodeToString(val))
+		if err != nil {
+			return fmt.Errorf("set auth cache %s: %w", key, err)
+		}
+	}
+	return nil
+}
+
+// GetAuthCache возвращает данные для восстановления мастер-ключа.
+func (v *Vault) GetAuthCache(ctx context.Context) (salt, encryptedMasterKey, masterKeyNonce []byte, err error) {
+	keys := []string{"argon2_salt", "encrypted_master_key", "master_key_nonce"}
+	result := make(map[string][]byte, len(keys))
+	for _, key := range keys {
+		var encoded string
+		if err := v.db.QueryRowContext(ctx, `SELECT value FROM meta WHERE key = ?`, key).Scan(&encoded); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, nil, nil, ErrNotFound
+			}
+			return nil, nil, nil, fmt.Errorf("get auth cache %s: %w", key, err)
+		}
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("decode auth cache %s: %w", key, err)
+		}
+		result[key] = decoded
+	}
+	return result["argon2_salt"], result["encrypted_master_key"], result["master_key_nonce"], nil
 }
 
 // Close закрывает бд

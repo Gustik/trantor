@@ -4,7 +4,7 @@ VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo de
 BUILD_DATE = $(shell date -u +%Y-%m-%d)
 LDFLAGS    = -X main.version=$(VERSION) -X main.buildDate=$(BUILD_DATE)
 
-.PHONY: build-server build-client build test test-integration lint proto migrate psql
+.PHONY: build-server build-client build run-server test test-integration lint proto migrate psql
 
 # Сборка сервера
 build-server:
@@ -16,6 +16,14 @@ build-client:
 
 # Сборка обоих бинарников
 build: build-server build-client
+
+# Запуск сервера (поднимает postgres если не запущен, применяет миграции, стартует сервер)
+run-server:
+	docker compose up -d postgres
+	$(MIGRATE) up
+	TRANTOR_DSN="postgres://trantor:trantor@localhost:5432/trantor?sslmode=disable" \
+	TRANTOR_JWT_SECRET="dev-secret-32-bytes-xxxxxxxxxxx" \
+	go run ./cmd/server
 
 # Кросс-компиляция клиента
 build-linux:

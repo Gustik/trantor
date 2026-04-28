@@ -25,6 +25,10 @@ type vaultStore interface {
 	SetAuthToken(ctx context.Context, token string) error
 	// GetAuthToken возвращает токен авторизации.
 	GetAuthToken(ctx context.Context) (string, error)
+	// SetAuthCache сохраняет данные для восстановления мастер-ключа без обращения к серверу.
+	SetAuthCache(ctx context.Context, salt, encryptedMasterKey, masterKeyNonce []byte) error
+	// GetAuthCache возвращает данные для восстановления мастер-ключа.
+	GetAuthCache(ctx context.Context) (salt, encryptedMasterKey, masterKeyNonce []byte, err error)
 }
 
 // Service реализует клиентскую логику аутентификации.
@@ -67,6 +71,10 @@ func (s *Service) Register(ctx context.Context, login, password string) (masterK
 		return nil, fmt.Errorf("save token: %w", err)
 	}
 
+	if err := s.vault.SetAuthCache(ctx, salt, encryptedMasterKey, nonce); err != nil {
+		return nil, fmt.Errorf("save auth cache: %w", err)
+	}
+
 	return masterKey, nil
 }
 
@@ -95,5 +103,24 @@ func (s *Service) Login(ctx context.Context, login, password string) (masterKey 
 		return nil, fmt.Errorf("set token: %w", err)
 	}
 
+	if err := s.vault.SetAuthCache(ctx, salt, encryptedMasterKey, masterKeyNonce); err != nil {
+		return nil, fmt.Errorf("save auth cache: %w", err)
+	}
+
+	return masterKey, nil
+}
+
+// DeriveFromCache восстанавливает мастер-ключ из локального кэша без обращения к серверу.
+// Возвращает ошибку если кэш отсутствует или пароль неверный.
+func (s *Service) DeriveFromCache(ctx context.Context, password string) ([]byte, error) {
+	salt, encryptedMasterKey, masterKeyNonce, err := s.vault.GetAuthCache(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_, encryptionKey := crypto.DeriveKeys(password, salt)
+	masterKey, err := crypto.Decrypt(encryptionKey, masterKeyNonce, encryptedMasterKey)
+	if err != nil {
+		return nil, fmt.Errorf("неверный пароль")
+	}
 	return masterKey, nil
 }
