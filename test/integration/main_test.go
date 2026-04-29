@@ -36,6 +36,7 @@ var (
 	testSecretService *secret.Service
 	testAuthClient    pb.AuthServiceClient
 	testSecretClient  pb.SecretServiceClient
+	testServerAddr    string
 )
 
 func TestMain(m *testing.M) {
@@ -96,6 +97,7 @@ func TestMain(m *testing.M) {
 	handler := grpchandler.New(testAuthService, testSecretService, testJWTSecret)
 	pb.RegisterAuthServiceServer(grpcServer, handler)
 	pb.RegisterSecretServiceServer(grpcServer, handler)
+	testServerAddr = lis.Addr().String()
 	go grpcServer.Serve(lis)
 
 	// создаём клиентов
