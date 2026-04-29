@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	commondomain "github.com/Gustik/trantor/internal/common/domain"
-	domain "github.com/Gustik/trantor/internal/server/domain"
+	"github.com/Gustik/trantor/internal/server/domain"
 	"github.com/Gustik/trantor/internal/server/storage"
 )
 
@@ -57,7 +57,7 @@ func (s *Service) GetByID(ctx context.Context, id, userID uuid.UUID) (*domain.Se
 	secret, err := s.storage.GetSecretByID(ctx, id, userID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return nil, commondomain.ErrSecretNotFound
+			return nil, domain.ErrSecretNotFound
 		}
 		return nil, fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
@@ -81,7 +81,7 @@ func (s *Service) Update(ctx context.Context, secret *domain.Secret) error {
 	secret.UpdatedAt = time.Now().UTC()
 	if err := s.storage.UpdateSecret(ctx, secret); err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return commondomain.ErrSecretNotFound
+			return domain.ErrSecretNotFound
 		}
 		return fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}
@@ -93,7 +93,7 @@ func (s *Service) Update(ctx context.Context, secret *domain.Secret) error {
 func (s *Service) Delete(ctx context.Context, id, userID uuid.UUID) error {
 	if err := s.storage.DeleteSecret(ctx, id, userID); err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return commondomain.ErrSecretNotFound
+			return domain.ErrSecretNotFound
 		}
 		return fmt.Errorf("%w: %w", commondomain.ErrInternal, err)
 	}

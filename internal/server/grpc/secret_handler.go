@@ -12,8 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/Gustik/trantor/api/gen/trantor/v1"
-	commondomain "github.com/Gustik/trantor/internal/common/domain"
-	domain "github.com/Gustik/trantor/internal/server/domain"
+	"github.com/Gustik/trantor/internal/server/domain"
 	"github.com/Gustik/trantor/pkg/crypto"
 )
 
@@ -74,7 +73,7 @@ func (h *Handler) GetSecret(ctx context.Context, req *pb.GetSecretRequest) (*pb.
 
 	secret, err := h.secret.GetByID(ctx, id, userID)
 	if err != nil {
-		if errors.Is(err, commondomain.ErrSecretNotFound) {
+		if errors.Is(err, domain.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "secret not found")
 		}
 		slog.ErrorContext(ctx, "get secret", "err", err)
@@ -138,7 +137,7 @@ func (h *Handler) UpdateSecret(ctx context.Context, req *pb.UpdateSecretRequest)
 	}
 
 	if err := h.secret.Update(ctx, secret); err != nil {
-		if errors.Is(err, commondomain.ErrSecretNotFound) {
+		if errors.Is(err, domain.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "secret not found")
 		}
 		slog.ErrorContext(ctx, "update secret", "err", err)
@@ -164,7 +163,7 @@ func (h *Handler) DeleteSecret(ctx context.Context, req *pb.DeleteSecretRequest)
 	}
 
 	if err := h.secret.Delete(ctx, id, userID); err != nil {
-		if errors.Is(err, commondomain.ErrSecretNotFound) {
+		if errors.Is(err, domain.ErrSecretNotFound) {
 			return nil, status.Error(codes.NotFound, "secret not found")
 		}
 		slog.ErrorContext(ctx, "delete secret", "err", err)

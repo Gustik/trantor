@@ -7,15 +7,15 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/Gustik/trantor/internal/client/domain"
 	secretsvc "github.com/Gustik/trantor/internal/client/secret"
-	commondomain "github.com/Gustik/trantor/internal/common/domain"
 )
 
-var secretTypes = []commondomain.SecretType{
-	commondomain.SecretTypeText,
-	commondomain.SecretTypeLoginPassword,
-	commondomain.SecretTypeBinary,
-	commondomain.SecretTypeBankCard,
+var secretTypes = []domain.SecretType{
+	domain.SecretTypeText,
+	domain.SecretTypeLoginPassword,
+	domain.SecretTypeBinary,
+	domain.SecretTypeBankCard,
 }
 
 type createModel struct {
@@ -86,7 +86,7 @@ func (m createModel) Update(msg tea.Msg) (createModel, tea.Cmd) {
 				}
 				m.loading = true
 				m.err = ""
-				payload := &commondomain.SecretPayload{
+				payload := &domain.SecretPayload{
 					Type: secretTypes[m.typeIdx],
 					Name: m.nameInput.Value(),
 					Data: []byte(m.dataInput.Value()),
@@ -170,4 +170,3 @@ func (m createModel) View() string {
 
 	return b.String()
 }
-

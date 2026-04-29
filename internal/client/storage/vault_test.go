@@ -6,12 +6,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	_ "github.com/mattn/go-sqlite3"
 
-	cdomain "github.com/Gustik/trantor/internal/client/domain"
-	commondomain "github.com/Gustik/trantor/internal/common/domain"
+	"github.com/Gustik/trantor/internal/client/domain"
 	"github.com/Gustik/trantor/pkg/crypto"
 )
 
@@ -25,14 +24,14 @@ func newTestVault(t *testing.T) *Vault {
 
 var testMasterKey = make([]byte, crypto.KeySize)
 
-func testSecret(t *testing.T) *cdomain.Secret {
+func testSecret(t *testing.T) *domain.Secret {
 	t.Helper()
 	data := []byte("secret-data")
 	encryptedData, nonce, err := crypto.Encrypt(testMasterKey, data)
 	require.NoError(t, err)
-	return &cdomain.Secret{
+	return &domain.Secret{
 		ID:        uuid.New(),
-		Type:      commondomain.SecretTypeText,
+		Type:      domain.SecretTypeText,
 		Name:      "test",
 		Data:      encryptedData,
 		DataNonce: nonce,

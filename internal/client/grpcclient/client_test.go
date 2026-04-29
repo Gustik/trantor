@@ -12,7 +12,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/Gustik/trantor/api/gen/trantor/v1"
-	"github.com/Gustik/trantor/internal/common/domain"
+	"github.com/Gustik/trantor/internal/client/domain"
+	commondomain "github.com/Gustik/trantor/internal/common/domain"
 )
 
 func TestToAuthError(t *testing.T) {
@@ -21,11 +22,11 @@ func TestToAuthError(t *testing.T) {
 		code    codes.Code
 		wantErr error
 	}{
-		{"NotFound", codes.NotFound, domain.ErrUserNotFound},
-		{"AlreadyExists", codes.AlreadyExists, domain.ErrUserAlreadyExists},
-		{"Unauthenticated", codes.Unauthenticated, domain.ErrInvalidCredentials},
-		{"Internal", codes.Internal, domain.ErrInternal},
-		{"Unknown", codes.Unknown, domain.ErrInternal},
+		{"NotFound", codes.NotFound, commondomain.ErrUserNotFound},
+		{"AlreadyExists", codes.AlreadyExists, commondomain.ErrUserAlreadyExists},
+		{"Unauthenticated", codes.Unauthenticated, commondomain.ErrInvalidCredentials},
+		{"Internal", codes.Internal, commondomain.ErrInternal},
+		{"Unknown", codes.Unknown, commondomain.ErrInternal},
 	}
 
 	for _, tt := range tests {
@@ -43,9 +44,9 @@ func TestToSecretError(t *testing.T) {
 		wantErr error
 	}{
 		{"NotFound", codes.NotFound, domain.ErrSecretNotFound},
-		{"Unauthenticated", codes.Unauthenticated, domain.ErrInvalidCredentials},
-		{"Internal", codes.Internal, domain.ErrInternal},
-		{"Unknown", codes.Unknown, domain.ErrInternal},
+		{"Unauthenticated", codes.Unauthenticated, commondomain.ErrInvalidCredentials},
+		{"Internal", codes.Internal, commondomain.ErrInternal},
+		{"Unknown", codes.Unknown, commondomain.ErrInternal},
 	}
 
 	for _, tt := range tests {
@@ -84,6 +85,6 @@ func TestProtoToSecret(t *testing.T) {
 		s := &pb.Secret{Id: &idStr}
 
 		_, err := protoToSecret(s)
-		assert.ErrorIs(t, err, domain.ErrInternal)
+		assert.ErrorIs(t, err, commondomain.ErrInternal)
 	})
 }

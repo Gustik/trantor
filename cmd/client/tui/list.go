@@ -12,12 +12,11 @@ import (
 	"github.com/Gustik/trantor/internal/client/domain"
 	secretsvc "github.com/Gustik/trantor/internal/client/secret"
 	"github.com/Gustik/trantor/internal/client/storage"
-	commondomain "github.com/Gustik/trantor/internal/common/domain"
 )
 
 type listItem struct {
 	id         uuid.UUID
-	secretType commondomain.SecretType
+	secretType domain.SecretType
 	name       string
 }
 

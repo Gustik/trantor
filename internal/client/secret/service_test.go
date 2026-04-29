@@ -14,7 +14,6 @@ import (
 
 	"github.com/Gustik/trantor/internal/client/domain"
 	"github.com/Gustik/trantor/internal/client/storage"
-	commondomain "github.com/Gustik/trantor/internal/common/domain"
 	sdomain "github.com/Gustik/trantor/internal/server/domain"
 	"github.com/Gustik/trantor/pkg/crypto"
 )
@@ -98,16 +97,16 @@ func (m *mockVault) GetAuthToken(ctx context.Context) (string, error) {
 
 // --- helpers ---
 
-func testPayload() *commondomain.SecretPayload {
-	return &commondomain.SecretPayload{
-		Type: commondomain.SecretTypeText,
+func testPayload() *domain.SecretPayload {
+	return &domain.SecretPayload{
+		Type: domain.SecretTypeText,
 		Name: "mysite.com",
 		Data: []byte("hunter2"),
 	}
 }
 
 // encryptedVaultSecret возвращает domain.Secret с Data зашифрованной testMasterKey.
-func encryptedVaultSecret(t *testing.T, payload *commondomain.SecretPayload) *domain.Secret {
+func encryptedVaultSecret(t *testing.T, payload *domain.SecretPayload) *domain.Secret {
 	t.Helper()
 	data, nonce, err := crypto.Encrypt(testMasterKey, payload.Data)
 	require.NoError(t, err)
@@ -124,7 +123,7 @@ func encryptedVaultSecret(t *testing.T, payload *commondomain.SecretPayload) *do
 }
 
 // encryptedServerSecret возвращает sdomain.Secret с полным payload зашифрованным testMasterKey.
-func encryptedServerSecret(t *testing.T, payload *commondomain.SecretPayload) *sdomain.Secret {
+func encryptedServerSecret(t *testing.T, payload *domain.SecretPayload) *sdomain.Secret {
 	t.Helper()
 	raw, err := json.Marshal(payload)
 	require.NoError(t, err)
@@ -232,7 +231,7 @@ func TestList(t *testing.T) {
 
 	t.Run("несколько секретов", func(t *testing.T) {
 		p1 := testPayload()
-		p2 := &commondomain.SecretPayload{Type: commondomain.SecretTypeLoginPassword, Name: "bank", Data: []byte("pass")}
+		p2 := &domain.SecretPayload{Type: domain.SecretTypeLoginPassword, Name: "bank", Data: []byte("pass")}
 		v := &mockVault{}
 		v.On("ListSecrets", ctx).Return([]*domain.Secret{
 			encryptedVaultSecret(t, p1),
@@ -286,7 +285,7 @@ func TestDelete(t *testing.T) {
 		c := &mockGRPCClient{}
 		v := &mockVault{}
 		v.On("GetAuthToken", ctx).Return("token", nil)
-		c.On("DeleteSecret", ctx, "token", id.String()).Return(commondomain.ErrSecretNotFound)
+		c.On("DeleteSecret", ctx, "token", id.String()).Return(domain.ErrSecretNotFound)
 
 		err := New(c, v, nil).Delete(ctx, id)
 		assert.Error(t, err)

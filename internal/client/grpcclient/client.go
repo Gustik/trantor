@@ -16,8 +16,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/Gustik/trantor/api/gen/trantor/v1"
-	commondomain "github.com/Gustik/trantor/internal/common/domain"
+	"github.com/Gustik/trantor/internal/client/domain"
 	"github.com/Gustik/trantor/internal/common/config"
+	commondomain "github.com/Gustik/trantor/internal/common/domain"
 	sdomain "github.com/Gustik/trantor/internal/server/domain"
 )
 
@@ -215,7 +216,7 @@ func toAuthError(err error) error {
 func toSecretError(err error) error {
 	switch status.Code(err) {
 	case codes.NotFound:
-		return commondomain.ErrSecretNotFound
+		return domain.ErrSecretNotFound
 	case codes.Unauthenticated:
 		return commondomain.ErrInvalidCredentials
 	default:

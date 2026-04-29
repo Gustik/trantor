@@ -2,10 +2,14 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+// ErrSecretNotFound возвращается когда секрет не найден.
+var ErrSecretNotFound = errors.New("секрет не найден")
 
 // Secret представляет зашифрованный секрет пользователя на сервере.
 // Data содержит зашифрованный blob — сервер не знает его содержимого.

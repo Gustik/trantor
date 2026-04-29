@@ -3,7 +3,7 @@ package tui
 import (
 	"github.com/charmbracelet/lipgloss"
 
-	commondomain "github.com/Gustik/trantor/internal/common/domain"
+	domain "github.com/Gustik/trantor/internal/client/domain"
 )
 
 var (
@@ -37,17 +37,17 @@ var (
 	normalItemStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("252"))
 
-	badgeStyles = map[commondomain.SecretType]lipgloss.Style{
-		commondomain.SecretTypeLoginPassword: lipgloss.NewStyle().
+	badgeStyles = map[domain.SecretType]lipgloss.Style{
+		domain.SecretTypeLoginPassword: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("39")).
 			Bold(true),
-		commondomain.SecretTypeText: lipgloss.NewStyle().
+		domain.SecretTypeText: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("113")).
 			Bold(true),
-		commondomain.SecretTypeBinary: lipgloss.NewStyle().
+		domain.SecretTypeBinary: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("214")).
 			Bold(true),
-		commondomain.SecretTypeBankCard: lipgloss.NewStyle().
+		domain.SecretTypeBankCard: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("204")).
 			Bold(true),
 	}
@@ -58,12 +58,12 @@ var (
 				Padding(0, 2)
 )
 
-func badge(t commondomain.SecretType) string {
-	labels := map[commondomain.SecretType]string{
-		commondomain.SecretTypeLoginPassword: "login",
-		commondomain.SecretTypeText:          "text",
-		commondomain.SecretTypeBinary:        "bin",
-		commondomain.SecretTypeBankCard:      "card",
+func badge(t domain.SecretType) string {
+	labels := map[domain.SecretType]string{
+		domain.SecretTypeLoginPassword: "login",
+		domain.SecretTypeText:          "text",
+		domain.SecretTypeBinary:        "bin",
+		domain.SecretTypeBankCard:      "card",
 	}
 	label, ok := labels[t]
 	if !ok {

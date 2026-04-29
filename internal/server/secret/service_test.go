@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	commondomain "github.com/Gustik/trantor/internal/common/domain"
-	domain "github.com/Gustik/trantor/internal/server/domain"
+	"github.com/Gustik/trantor/internal/server/domain"
 	"github.com/Gustik/trantor/internal/server/storage"
 )
 
@@ -109,7 +109,7 @@ func TestService_GetByID(t *testing.T) {
 
 		svc := New(store)
 		_, err := svc.GetByID(ctx, id, userID)
-		assert.ErrorIs(t, err, commondomain.ErrSecretNotFound)
+		assert.ErrorIs(t, err, domain.ErrSecretNotFound)
 		store.AssertExpectations(t)
 	})
 }
@@ -163,7 +163,7 @@ func TestService_Update(t *testing.T) {
 
 		svc := New(store)
 		err := svc.Update(ctx, secret)
-		assert.ErrorIs(t, err, commondomain.ErrSecretNotFound)
+		assert.ErrorIs(t, err, domain.ErrSecretNotFound)
 		store.AssertExpectations(t)
 	})
 
@@ -200,7 +200,7 @@ func TestService_Delete(t *testing.T) {
 
 		svc := New(store)
 		err := svc.Delete(ctx, id, userID)
-		assert.ErrorIs(t, err, commondomain.ErrSecretNotFound)
+		assert.ErrorIs(t, err, domain.ErrSecretNotFound)
 		store.AssertExpectations(t)
 	})
 }

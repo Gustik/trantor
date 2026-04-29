@@ -12,7 +12,6 @@ import (
 
 	"github.com/Gustik/trantor/internal/client/domain"
 	"github.com/Gustik/trantor/internal/client/storage"
-	commondomain "github.com/Gustik/trantor/internal/common/domain"
 	sdomain "github.com/Gustik/trantor/internal/server/domain"
 	"github.com/Gustik/trantor/pkg/crypto"
 )
@@ -71,7 +70,7 @@ func New(client grpcClient, vault vaultStore, masterKey []byte) *Service {
 // Локально: type/name/metadata plaintext для поиска, data зашифрована master_key.
 // На сервер: весь payload зашифрован целиком — сервер ничего не знает о содержимом.
 // Если сервер недоступен — секрет остаётся с synced=false и будет отправлен при следующем Sync.
-func (s *Service) Create(ctx context.Context, payload *commondomain.SecretPayload) error {
+func (s *Service) Create(ctx context.Context, payload *domain.SecretPayload) error {
 	// Шифруем только Data для локального хранения.
 	encryptedData, dataNonce, err := crypto.Encrypt(s.masterKey, payload.Data)
 	if err != nil {
@@ -122,7 +121,7 @@ func (s *Service) Create(ctx context.Context, payload *commondomain.SecretPayloa
 }
 
 // Get возвращает секрет из локального vault по ID.
-func (s *Service) Get(ctx context.Context, id uuid.UUID) (*commondomain.SecretPayload, error) {
+func (s *Service) Get(ctx context.Context, id uuid.UUID) (*domain.SecretPayload, error) {
 	secret, err := s.vault.GetSecret(ctx, id)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
@@ -136,7 +135,7 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (*commondomain.SecretPa
 		return nil, errors.Join(domain.ErrInternal, err)
 	}
 
-	return &commondomain.SecretPayload{
+	return &domain.SecretPayload{
 		Type:     secret.Type,
 		Name:     secret.Name,
 		Metadata: secret.Metadata,
@@ -145,13 +144,13 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (*commondomain.SecretPa
 }
 
 // List возвращает все секреты из локального vault.
-func (s *Service) List(ctx context.Context) ([]*commondomain.SecretPayload, error) {
+func (s *Service) List(ctx context.Context) ([]*domain.SecretPayload, error) {
 	secrets, err := s.vault.ListSecrets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list secret: %w", errors.Join(domain.ErrInternal, err))
 	}
 
-	payloads := make([]*commondomain.SecretPayload, 0, len(secrets))
+	payloads := make([]*domain.SecretPayload, 0, len(secrets))
 
 	for _, secret := range secrets {
 		data, err := crypto.Decrypt(s.masterKey, secret.DataNonce, secret.Data)
@@ -159,7 +158,7 @@ func (s *Service) List(ctx context.Context) ([]*commondomain.SecretPayload, erro
 			return nil, errors.Join(domain.ErrInternal, err)
 		}
 
-		payloads = append(payloads, &commondomain.SecretPayload{
+		payloads = append(payloads, &domain.SecretPayload{
 			Type:     secret.Type,
 			Name:     secret.Name,
 			Metadata: secret.Metadata,
@@ -220,7 +219,7 @@ func (s *Service) Sync(ctx context.Context) error {
 			return errors.Join(domain.ErrInternal, err)
 		}
 
-		marshaled, err := json.Marshal(&commondomain.SecretPayload{
+		marshaled, err := json.Marshal(&domain.SecretPayload{
 			Type:     secret.Type,
 			Name:     secret.Name,
 			Data:     data,
@@ -266,7 +265,7 @@ func (s *Service) Sync(ctx context.Context) error {
 			return errors.Join(domain.ErrInternal, err)
 		}
 
-		var payload commondomain.SecretPayload
+		var payload domain.SecretPayload
 		if err := json.Unmarshal(raw, &payload); err != nil {
 			return errors.Join(domain.ErrInternal, err)
 		}
@@ -293,3 +292,4 @@ func (s *Service) Sync(ctx context.Context) error {
 
 	return s.vault.SetLastSyncedAt(ctx, now)
 }
+
