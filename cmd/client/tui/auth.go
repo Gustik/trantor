@@ -40,6 +40,9 @@ func (m passwordModel) Update(msg tea.Msg) (passwordModel, tea.Cmd) {
 		return m, textinput.Blink
 
 	case tea.KeyMsg:
+		if msg.Type == tea.KeyCtrlC || msg.String() == "q" {
+			return m, tea.Quit
+		}
 		if msg.Type == tea.KeyEnter && !m.loading && m.input.Value() != "" {
 			password := m.input.Value()
 			m.loading = true
@@ -69,7 +72,7 @@ func (m passwordModel) View() string {
 	if m.loading {
 		b.WriteString(subtleStyle.Render("Проверка..."))
 	} else {
-		b.WriteString(helpStyle.Render("enter — войти"))
+		b.WriteString(helpStyle.Render("enter — войти  •  q — выйти"))
 	}
 	return b.String()
 }

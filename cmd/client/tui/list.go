@@ -26,6 +26,7 @@ type listModel struct {
 	cursor        int
 	loading       bool
 	syncing       bool
+	initialLoad   bool
 	confirmLogout bool
 	err           string
 	spinner       spinner.Model
@@ -36,7 +37,7 @@ type listModel struct {
 func newListModel(vault *storage.Vault, svc *secretsvc.Service) listModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	return listModel{vault: vault, svc: svc, spinner: s, loading: true}
+	return listModel{vault: vault, svc: svc, spinner: s, loading: true, initialLoad: true}
 }
 
 func (m listModel) Init() tea.Cmd {
@@ -47,6 +48,8 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case secretsLoadedMsg:
 		m.loading = false
+		firstLoad := m.initialLoad
+		m.initialLoad = false
 		if msg.err != nil {
 			m.err = msg.err.Error()
 			return m, nil
@@ -54,6 +57,10 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		m.items = toListItems(msg.secrets)
 		if m.cursor >= len(m.items) {
 			m.cursor = max(0, len(m.items)-1)
+		}
+		if firstLoad && len(m.items) == 0 && !m.syncing {
+			m.syncing = true
+			return m, tea.Batch(syncCmd(m.svc), m.spinner.Tick)
 		}
 
 	case syncDoneMsg:
