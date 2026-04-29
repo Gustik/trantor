@@ -42,15 +42,19 @@ func DeriveKeys(password string, salt []byte) (authKey, encryptionKey []byte) {
 
 // GenerateSalt генерирует случайный salt для Argon2.
 func GenerateSalt() ([]byte, error) {
-	salt := make([]byte, 32)
-	rand.Read(salt)
+	salt := make([]byte, SaltSize)
+	if _, err := rand.Read(salt); err != nil {
+		return nil, fmt.Errorf("generate salt: %w", err)
+	}
 	return salt, nil
 }
 
 // GenerateMasterKey генерирует случайный мастер-ключ.
 func GenerateMasterKey() ([]byte, error) {
-	key := make([]byte, 32)
-	rand.Read(key)
+	key := make([]byte, KeySize)
+	if _, err := rand.Read(key); err != nil {
+		return nil, fmt.Errorf("generate master key: %w", err)
+	}
 	return key, nil
 }
 

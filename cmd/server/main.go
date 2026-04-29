@@ -45,7 +45,11 @@ func main() {
 
 	pb.RegisterAuthServiceServer(grpcServer, handler)
 	pb.RegisterSecretServiceServer(grpcServer, handler)
-	go grpcServer.Serve(lis)
+	go func() {
+		if err := grpcServer.Serve(lis); err != nil {
+			slog.Error("gRPC server stopped", "err", err)
+		}
+	}()
 	slog.Info("Сервер запущен", "grpc", srvCfg.GRPC)
 
 	gracefulStop(grpcServer, cancel, db)
