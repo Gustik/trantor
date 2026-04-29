@@ -18,7 +18,11 @@ func newTestVault(t *testing.T) *Vault {
 	t.Helper()
 	v, err := New(":memory:")
 	require.NoError(t, err)
-	t.Cleanup(func() { v.Close() })
+	t.Cleanup(func() {
+		if err := v.Close(); err != nil {
+			t.Errorf("close vault: %v", err)
+		}
+	})
 	return v
 }
 

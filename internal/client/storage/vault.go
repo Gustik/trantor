@@ -29,7 +29,7 @@ func New(path string) (*Vault, error) {
 
 	v := &Vault{db: db}
 	if err := v.migrate(context.Background()); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 	return v, nil
@@ -80,7 +80,7 @@ func (v *Vault) ListUnsynced(ctx context.Context) ([]uuid.UUID, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list unsynced: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var ids []uuid.UUID
 	for rows.Next() {
@@ -123,7 +123,7 @@ func (v *Vault) ListSecrets(ctx context.Context) ([]*domain.Secret, error) {
 	if err != nil {
 		return nil, fmt.Errorf("execute query in list secrets: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var secrets []*domain.Secret
 	for rows.Next() {

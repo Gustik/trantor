@@ -16,7 +16,7 @@ func unsetenv(t *testing.T, key string) {
 		t.Fatalf("unsetenv %s: %v", key, err)
 	}
 	if ok {
-		t.Cleanup(func() { os.Setenv(key, old) })
+		t.Cleanup(func() { _ = os.Setenv(key, old) })
 	}
 }
 

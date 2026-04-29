@@ -145,7 +145,7 @@ func (m listModel) View() string {
 				prefix = "▶ "
 				style = selectedItemStyle
 			}
-			b.WriteString(fmt.Sprintf("%s%s %s\n", prefix, badge(item.secretType), style.Render(item.name)))
+			fmt.Fprintf(&b, "%s%s %s\n", prefix, badge(item.secretType), style.Render(item.name))
 		}
 	}
 

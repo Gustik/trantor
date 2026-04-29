@@ -33,13 +33,13 @@ func Start(version, buildDate string) error {
 	if err != nil {
 		return fmt.Errorf("open vault: %w", err)
 	}
-	defer vault.Close()
+	defer func() { _ = vault.Close() }()
 
 	client, err := grpcclient.New(*cfg)
 	if err != nil {
 		return fmt.Errorf("create grpc client: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	authSvc := auth.New(client, vault)
 
