@@ -25,6 +25,7 @@ func newPasswordModel(authSvc *auth.Service) passwordModel {
 	ti.Placeholder = "пароль"
 	ti.EchoMode = textinput.EchoPassword
 	ti.EchoCharacter = '•'
+	ti.SetWidth(30)
 	ti.Focus()
 	return passwordModel{input: ti, authSvc: authSvc}
 }
@@ -99,12 +100,14 @@ type authModel struct {
 func newAuthModel(authSvc *auth.Service, vault *storage.Vault) authModel {
 	login := textinput.New()
 	login.Placeholder = "логин"
+	login.SetWidth(30)
 	login.Focus()
 
 	pass := textinput.New()
 	pass.Placeholder = "пароль"
 	pass.EchoMode = textinput.EchoPassword
 	pass.EchoCharacter = '•'
+	pass.SetWidth(30)
 
 	return authModel{
 		authSvc: authSvc,

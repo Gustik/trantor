@@ -36,10 +36,12 @@ type createModel struct {
 func newCreateModel(svc *secretsvc.Service) createModel {
 	name := textinput.New()
 	name.Placeholder = "название"
+	name.SetWidth(30)
 	name.Focus()
 
 	data := textinput.New()
 	data.Placeholder = "данные"
+	data.SetWidth(30)
 
 	fp := filepicker.New()
 	if home, err := os.UserHomeDir(); err == nil {
