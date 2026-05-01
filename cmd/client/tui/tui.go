@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/Gustik/trantor/internal/client/auth"
 	grpcclient "github.com/Gustik/trantor/internal/client/grpcclient"
@@ -47,7 +47,7 @@ func Start(version, buildDate string) error {
 	hasToken := tokenErr == nil
 
 	root := newRoot(authSvc, vault, client, hasToken)
-	_, err = tea.NewProgram(root, tea.WithAltScreen()).Run()
+	_, err = tea.NewProgram(root).Run()
 	return err
 }
 

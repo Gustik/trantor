@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 	"github.com/google/uuid"
 
 	"github.com/Gustik/trantor/internal/client/domain"
@@ -78,13 +78,13 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 			return m, cmd
 		}
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.loading {
 			return m, nil
 		}
 		if m.confirmLogout {
 			switch msg.String() {
-			case "y", "Y", "д", "Д":
+			case "y", "д":
 				return m, func() tea.Msg { return logoutMsg{} }
 			default:
 				m.confirmLogout = false
@@ -184,4 +184,3 @@ func syncCmd(svc *secretsvc.Service) tea.Cmd {
 		return syncDoneMsg{err: svc.Sync(context.Background())}
 	}
 }
-

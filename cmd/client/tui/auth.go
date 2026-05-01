@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/Gustik/trantor/internal/client/auth"
 	"github.com/Gustik/trantor/internal/client/storage"
@@ -39,11 +39,11 @@ func (m passwordModel) Update(msg tea.Msg) (passwordModel, tea.Cmd) {
 		m.input.SetValue("")
 		return m, textinput.Blink
 
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyCtrlC || msg.String() == "q" {
+	case tea.KeyPressMsg:
+		if msg.String() == "ctrl+c" || msg.String() == "q" {
 			return m, tea.Quit
 		}
-		if msg.Type == tea.KeyEnter && !m.loading && m.input.Value() != "" {
+		if msg.Code == tea.KeyEnter && !m.loading && m.input.Value() != "" {
 			password := m.input.Value()
 			m.loading = true
 			m.err = ""
@@ -123,7 +123,7 @@ func (m authModel) Update(msg tea.Msg) (authModel, tea.Cmd) {
 		m.inputs[1].SetValue("")
 		return m, textinput.Blink
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch m.step {
 		case authStepChoice:
 			switch msg.String() {
@@ -138,18 +138,18 @@ func (m authModel) Update(msg tea.Msg) (authModel, tea.Cmd) {
 			}
 
 		case authStepForm:
-			switch msg.Type {
-			case tea.KeyEsc:
+			switch msg.String() {
+			case "esc":
 				m.step = authStepChoice
 				return m, nil
 
-			case tea.KeyTab, tea.KeyDown:
+			case "tab", "down":
 				m.inputs[m.focused].Blur()
 				m.focused = (m.focused + 1) % 2
 				m.inputs[m.focused].Focus()
 				return m, textinput.Blink
 
-			case tea.KeyEnter:
+			case "enter":
 				if m.focused == 0 {
 					m.inputs[0].Blur()
 					m.focused = 1

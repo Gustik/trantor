@@ -3,7 +3,7 @@ package tui
 import (
 	"context"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/Gustik/trantor/internal/client/auth"
 	grpcclient "github.com/Gustik/trantor/internal/client/grpcclient"
@@ -60,8 +60,8 @@ func (m rootModel) Init() tea.Cmd {
 
 func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyCtrlC {
+	case tea.KeyPressMsg:
+		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
 
@@ -118,20 +118,21 @@ func (m rootModel) delegateUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m rootModel) View() string {
+func (m rootModel) View() tea.View {
+	var content string
 	switch m.screen {
 	case screenPassword:
-		return m.password.View()
+		content = m.password.View()
 	case screenAuth:
-		return m.auth.View()
+		content = m.auth.View()
 	case screenList:
-		return m.list.View()
+		content = m.list.View()
 	case screenDetail:
-		return m.detail.View()
+		content = m.detail.View()
 	case screenCreate:
-		return m.create.View()
+		content = m.create.View()
 	}
-	return ""
+	return tea.View{Content: content, AltScreen: true}
 }
 
 func (m rootModel) newSecretSvc() *secretsvc.Service {

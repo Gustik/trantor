@@ -6,6 +6,7 @@ import (
 	"github.com/Gustik/trantor/internal/client/domain"
 )
 
+
 // Переходы между экранами — обрабатываются rootModel.
 type authSuccessMsg  struct{ masterKey []byte }
 type backMsg         struct{}
@@ -24,7 +25,7 @@ type syncDoneMsg      struct{ err error }
 type detailLoadedMsg  struct {
 	name       string
 	secretType string
-	data       string
+	data       []byte
 	metadata   map[string]string
 	err        error
 }

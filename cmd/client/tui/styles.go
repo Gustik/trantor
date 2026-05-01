@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 
 	domain "github.com/Gustik/trantor/internal/client/domain"
 )
