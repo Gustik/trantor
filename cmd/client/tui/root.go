@@ -34,16 +34,18 @@ type rootModel struct {
 	masterKey  []byte
 	width      int
 	height     int
+	appTitle   string
 }
 
-func newRoot(authSvc *auth.Service, vault *storage.Vault, client *grpcclient.Client, hasToken bool) rootModel {
-	m := rootModel{authSvc: authSvc, vault: vault, grpcClient: client}
+func newRoot(authSvc *auth.Service, vault *storage.Vault, client *grpcclient.Client, hasToken bool, version, buildDate string) rootModel {
+	title := formatAppTitle(version, buildDate)
+	m := rootModel{authSvc: authSvc, vault: vault, grpcClient: client, appTitle: title}
 	if hasToken {
 		m.screen = screenPassword
-		m.password = newPasswordModel(authSvc)
+		m.password = newPasswordModel(authSvc, title)
 	} else {
 		m.screen = screenAuth
-		m.auth = newAuthModel(authSvc, vault)
+		m.auth = newAuthModel(authSvc, vault, title)
 	}
 	return m
 }
@@ -72,7 +74,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case authSuccessMsg:
 		m.masterKey = msg.masterKey
 		m.screen = screenList
-		m.list = newListModel(m.vault, m.newSecretSvc())
+		m.list = newListModel(m.vault, m.newSecretSvc(), m.appTitle)
 		return m, m.list.Init()
 
 	case secretSelectedMsg:
@@ -87,14 +89,14 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case backMsg:
 		m.screen = screenList
-		m.list = newListModel(m.vault, m.newSecretSvc())
+		m.list = newListModel(m.vault, m.newSecretSvc(), m.appTitle)
 		return m, m.list.Init()
 
 	case logoutMsg:
 		_ = m.vault.Clear(context.Background())
 		m.masterKey = nil
 		m.screen = screenAuth
-		m.auth = newAuthModel(m.authSvc, m.vault)
+		m.auth = newAuthModel(m.authSvc, m.vault, m.appTitle)
 		return m, m.auth.Init()
 	}
 

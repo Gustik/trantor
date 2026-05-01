@@ -46,7 +46,7 @@ func Start(version, buildDate string) error {
 	_, tokenErr := vault.GetAuthToken(context.Background())
 	hasToken := tokenErr == nil
 
-	root := newRoot(authSvc, vault, client, hasToken)
+	root := newRoot(authSvc, vault, client, hasToken, version, buildDate)
 	_, err = tea.NewProgram(root).Run()
 	return err
 }

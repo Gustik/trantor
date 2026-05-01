@@ -31,12 +31,13 @@ type listModel struct {
 	spinner       spinner.Model
 	vault         *storage.Vault
 	svc           *secretsvc.Service
+	appTitle      string
 }
 
-func newListModel(vault *storage.Vault, svc *secretsvc.Service) listModel {
+func newListModel(vault *storage.Vault, svc *secretsvc.Service, appTitle string) listModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	return listModel{vault: vault, svc: svc, spinner: s, loading: true, initialLoad: true}
+	return listModel{vault: vault, svc: svc, spinner: s, loading: true, initialLoad: true, appTitle: appTitle}
 }
 
 func (m listModel) Init() tea.Cmd {
@@ -124,7 +125,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 
 func (m listModel) View() string {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("Trantor") + "\n\n")
+	b.WriteString(m.appTitle + "\n\n")
 
 	if m.loading {
 		b.WriteString(m.spinner.View() + " загрузка...\n")

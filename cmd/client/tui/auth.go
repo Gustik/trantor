@@ -14,20 +14,21 @@ import (
 
 // passwordModel — экран ввода пароля для возвращающегося пользователя.
 type passwordModel struct {
-	input   textinput.Model
-	authSvc *auth.Service
-	err     string
-	loading bool
+	input    textinput.Model
+	authSvc  *auth.Service
+	appTitle string
+	err      string
+	loading  bool
 }
 
-func newPasswordModel(authSvc *auth.Service) passwordModel {
+func newPasswordModel(authSvc *auth.Service, appTitle string) passwordModel {
 	ti := textinput.New()
 	ti.Placeholder = "пароль"
 	ti.EchoMode = textinput.EchoPassword
 	ti.EchoCharacter = '•'
 	ti.SetWidth(30)
 	ti.Focus()
-	return passwordModel{input: ti, authSvc: authSvc}
+	return passwordModel{input: ti, authSvc: authSvc, appTitle: appTitle}
 }
 
 func (m passwordModel) Init() tea.Cmd { return textinput.Blink }
@@ -65,7 +66,7 @@ func (m passwordModel) Update(msg tea.Msg) (passwordModel, tea.Cmd) {
 
 func (m passwordModel) View() string {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("Trantor") + "\n\n")
+	b.WriteString(m.appTitle + "\n\n")
 	b.WriteString(labelStyle.Render("Пароль: ") + m.input.View() + "\n\n")
 	if m.err != "" {
 		b.WriteString(errorStyle.Render(m.err) + "\n\n")
@@ -87,17 +88,18 @@ const (
 )
 
 type authModel struct {
-	step    authStep
-	choice  int // 0=login, 1=register
-	inputs  [2]textinput.Model
-	focused int
-	authSvc *auth.Service
-	vault   *storage.Vault
-	err     string
-	loading bool
+	step     authStep
+	choice   int // 0=login, 1=register
+	inputs   [2]textinput.Model
+	focused  int
+	authSvc  *auth.Service
+	vault    *storage.Vault
+	appTitle string
+	err      string
+	loading  bool
 }
 
-func newAuthModel(authSvc *auth.Service, vault *storage.Vault) authModel {
+func newAuthModel(authSvc *auth.Service, vault *storage.Vault, appTitle string) authModel {
 	login := textinput.New()
 	login.Placeholder = "логин"
 	login.SetWidth(30)
@@ -110,9 +112,10 @@ func newAuthModel(authSvc *auth.Service, vault *storage.Vault) authModel {
 	pass.SetWidth(30)
 
 	return authModel{
-		authSvc: authSvc,
-		vault:   vault,
-		inputs:  [2]textinput.Model{login, pass},
+		authSvc:  authSvc,
+		vault:    vault,
+		inputs:   [2]textinput.Model{login, pass},
+		appTitle: appTitle,
 	}
 }
 
@@ -196,7 +199,7 @@ func (m authModel) Update(msg tea.Msg) (authModel, tea.Cmd) {
 
 func (m authModel) View() string {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("Trantor — менеджер паролей") + "\n\n")
+	b.WriteString(m.appTitle + " — менеджер паролей\n\n")
 
 	switch m.step {
 	case authStepChoice:

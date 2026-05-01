@@ -58,6 +58,22 @@ var (
 				Padding(0, 2)
 )
 
+func formatAppTitle(version, buildDate string) string {
+	title := titleStyle.Render("Trantor")
+	if version == "" && buildDate == "" {
+		return title
+	}
+	meta := version
+	if buildDate != "" {
+		if meta != "" {
+			meta += " • " + buildDate
+		} else {
+			meta = buildDate
+		}
+	}
+	return title + " " + subtleStyle.Render(meta)
+}
+
 func badge(t domain.SecretType) string {
 	labels := map[domain.SecretType]string{
 		domain.SecretTypeLoginPassword: "login",
