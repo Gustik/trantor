@@ -1,6 +1,6 @@
 # Trantor
 
-Менеджер паролей. Клиент-серверная система для безопасного хранения логинов, паролей, текстовых данных, бинарных данных и банковских карт.
+Менеджер паролей с E2E-шифрованием. Клиент-серверная система для безопасного хранения логинов, паролей, текстовых заметок, бинарных файлов и банковских карт.
 
 ## Архитектура
 
@@ -10,57 +10,73 @@ trantor/
 │   ├── server/
 │   │   └── main.go                      — инициализация зависимостей, запуск gRPC сервера
 │   └── client/
-│       ├── main.go                      — инициализация зависимостей, регистрация команд
-│       └── commands/
-│           ├── root.go                  — корневая команда, глобальные флаги (--server, --config)
-│           ├── auth.go                  — команды: register, login
-│           └── secret.go                — команды: secret add, list, get, delete, sync
+│       ├── main.go                      — флаг --version, запуск TUI
+│       └── tui/
+│           ├── tui.go                   — Start(): инициализация deps, запуск bubbletea
+│           ├── root.go                  — rootModel: state machine, переходы между экранами
+│           ├── auth.go                  — экраны: ввод пароля, login/register
+│           ├── list.go                  — экран списка секретов, sync, logout
+│           ├── detail.go                — экран просмотра секрета, удаление
+│           ├── create.go                — экран создания секрета
+│           ├── msgs.go                  — typed Msg для переходов между экранами
+│           └── styles.go                — lipgloss: цвета, бейджи типов
 │
 ├── internal/
-│   ├── config/
-│   │   └── config.go                    — struct Config, Load() из env/файла
-│   │
-│   ├── domain/
-│   │   ├── user.go                      — struct User, ErrUserNotFound, ErrUserAlreadyExists, ErrInvalidCredentials
-│   │   └── secret.go                    — struct Secret, SecretType (login/text/binary/card), ErrSecretNotFound, ErrAccessDenied
+│   ├── common/                          — общий код клиента и сервера
+│   │   ├── config/
+│   │   │   └── config.go                — ServerConfig, ClientConfig, DBConfig (cleanenv)
+│   │   └── domain/
+│   │       ├── user.go                  — ErrUserNotFound, ErrUserAlreadyExists, ErrInvalidCredentials
+│   │       └── errors.go                — ErrInternal
 │   │
 │   ├── server/
+│   │   ├── domain/
+│   │   │   ├── user.go                  — User (серверная сущность)
+│   │   │   └── secret.go                — Secret (ID, UserID, Data, Nonce, timestamps), ErrSecretNotFound
 │   │   ├── auth/
-│   │   │   └── service.go               — Register, GetSalt, Login, bcrypt(auth_key) + interface userStorage
+│   │   │   └── service.go               — Register (bcrypt hash), GetSalt, Login
 │   │   ├── secret/
-│   │   │   └── service.go               — Create, GetByID, List, Update, Delete + interface secretStorage
+│   │   │   └── service.go               — Create, GetByID, List, Update, Delete
+│   │   ├── storage/
+│   │   │   ├── storage.go               — Storage{db *pgxpool.Pool}, New()
+│   │   │   ├── errors.go                — ErrNotFound, ErrDuplicate
+│   │   │   ├── user.go                  — CreateUser, FindUserByLogin, FindUserByID
+│   │   │   └── secret.go                — CreateSecret, GetSecretByID, ListSecrets, UpdateSecret, DeleteSecret (мягкое удаление)
 │   │   └── grpc/
-│   │       ├── handler.go               — gRPC handlers, перекладывает proto ↔ domain + interface authService, secretService
-│   │       └── interceptor.go           — UnaryInterceptor: проверка JWT, userID в контекст
-│   │
-│   ├── storage/
-│   │   └── postgres/
-│   │       ├── storage.go               — struct Storage{db *pgxpool.Pool}, New()
-│   │       ├── user.go                  — CreateUser, FindUserByLogin
-│   │       └── secret.go                — CreateSecret, GetSecretByID, ListSecrets, UpdateSecret, DeleteSecret
+│   │       ├── handler.go               — Handler struct, интерфейсы authService/secretService
+│   │       ├── auth_handler.go          — Register, GetSalt, Login
+│   │       ├── secret_handler.go        — CreateSecret, GetSecret, ListSecrets, UpdateSecret, DeleteSecret
+│   │       └── interceptor.go           — AuthInterceptor (JWT), UserIDFromContext
 │   │
 │   └── client/
-│       ├── service/
-│       │   ├── service.go               — struct Service, New(), interface grpcClient, interface vault
-│       │   ├── auth.go                  — Register, GetSalt, Login, сохранение токена
-│       │   └── secret.go                — Create, Get, List, Delete, Sync (сервер ↔ vault)
+│       ├── domain/
+│       │   ├── user.go                  — User (клиентская сущность)
+│       │   ├── secret.go                — SecretType, SecretPayload, Secret, ErrSecretNotFound
+│       │   └── errors.go                — ErrInternal, ErrNotAuthenticated
+│       ├── auth/
+│       │   └── service.go               — Register, Login, DeriveFromCache (Argon2 + крипто)
+│       ├── secret/
+│       │   └── service.go               — Create, Get, List, Delete, Sync
 │       ├── grpcclient/
-│       │   └── client.go                — gRPC соединение, все вызовы к серверу
-│       └── vault/
-│           └── vault.go                 — локальный кэш SQLite: хранение секретов офлайн
+│       │   └── client.go                — gRPC-соединение, все вызовы к серверу
+│       └── storage/
+│           └── vault.go                 — SQLite: секреты, токен, auth cache, время синхронизации
 │
 ├── pkg/
 │   ├── crypto/
-│   │   └── crypto.go                    — AES-256-GCM шифрование, Argon2 деривация ключа из пароля
+│   │   └── crypto.go                    — AES-256-GCM, Argon2, GenerateSalt, GenerateMasterKey
 │   └── jwt/
 │       └── jwt.go                       — GenerateToken, ValidateToken
 │
 ├── api/
-│   └── trantor.proto                    — gRPC контракт: сервисы, сообщения
+│   └── trantor.proto                    — gRPC контракт: AuthService, SecretService
+│
+├── test/
+│   └── integration/                     — интеграционные тесты (testcontainers-go + реальный gRPC)
 │
 ├── migrations/
-│   ├── 001_create_users.sql             — таблица users
-│   └── 002_create_secrets.sql           — таблица secrets
+│   ├── 000001_create_users.up.sql
+│   └── 000002_create_secrets.up.sql
 │
 ├── docker-compose.yml                   — PostgreSQL для локальной разработки
 ├── Makefile                             — build, test, proto, lint, migrate
@@ -98,6 +114,10 @@ trantor/
 5. AES-256-GCM decrypt(encryption_key, encrypted_master_key) → мастер-ключ
 6. мастер-ключ живёт в памяти клиента на время сессии
 
+Повторный вход (с того же устройства, без сети):
+1. пароль → Argon2 с кэшированным salt → encryption_key
+2. расшифровываем кэшированный encrypted_master_key локально
+
 Смена пароля:
 1. Argon2(новый пароль + новый salt) → новые auth_key + encryption_key
 2. AES-256-GCM(новый encryption_key, тот же мастер-ключ) → новый encrypted_master_key
@@ -116,50 +136,131 @@ trantor/
 
 ### Хранение данных
 
-**Сервер (PostgreSQL)** — всё зашифровано мастер-ключом, сервер не знает содержимого:
-- `data` — зашифрованный blob (логин+пароль, текст, бинарные данные, карта)
-- `metadata` — зашифрована вместе с `data`
+**Сервер (PostgreSQL)** — сервер не знает содержимого секретов:
+- `data` — весь `SecretPayload` зашифрован мастер-ключом целиком
+- `nonce` — для расшифровки, `NULL` у удалённых секретов
 
-**Клиент (SQLite vault)** — локальный кэш на устройстве пользователя:
-- `metadata` — в открытом виде, для быстрого локального поиска
-- `data` — зашифрован мастер-ключом, расшифровывается только по запросу пользователя
+**Клиент (SQLite vault)** — локальный кэш на устройстве:
+- `type`, `name`, `metadata` — plaintext, для быстрого поиска
+- `data` — зашифрован мастер-ключом, расшифровывается по запросу
 
-### Таблица users
+### Схема таблиц
 
 ```sql
 CREATE TABLE users (
     id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     login                 TEXT NOT NULL UNIQUE,
-    auth_key_hash         TEXT NOT NULL,         -- bcrypt(auth_key), пароль сервер не знает
+    auth_key_hash         TEXT NOT NULL,          -- bcrypt(auth_key)
     encrypted_master_key  BYTEA NOT NULL,         -- AES-GCM(encryption_key, master_key)
-    master_key_nonce      BYTEA NOT NULL,         -- nonce для расшифровки мастер-ключа
-    argon2_salt           BYTEA NOT NULL,         -- salt для Argon2
+    master_key_nonce      BYTEA NOT NULL,
+    argon2_salt           BYTEA NOT NULL,
     created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-```
 
-### Таблица secrets
-
-Сервер знает только кому принадлежит секрет и когда изменён — больше ничего.
-
-```sql
 CREATE TABLE secrets (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    data       BYTEA NOT NULL,    -- AES-GCM(master_key, SecretPayload{Type, Name, Data, Metadata})
-    nonce      BYTEA NOT NULL,
+    id         UUID        PRIMARY KEY,           -- назначается клиентом
+    user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    data       BYTEA,                             -- NULL если удалён
+    nonce      BYTEA,                             -- NULL если удалён
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ                        -- мягкое удаление
 );
 ```
 
-`SecretPayload` — структура которую шифрует клиент перед отправкой:
+Удаление секрета — мягкое: `data` и `nonce` обнуляются, проставляется `deleted_at`. Клиент узнаёт об удалении при следующей синхронизации через параметр `updated_after`.
+
+### Типы секретов
 
 ```go
 type SecretPayload struct {
-    Type     SecretType        // login_password, text, binary, bank_card
+    Type     SecretType        // login_password | text | binary | bank_card
     Name     string            // человекочитаемое имя, например "mysite.com"
-    Data     []byte            // сами данные
+    Data     []byte            // сами данные (до 5 МБ для бинарных файлов)
     Metadata map[string]string // произвольные метаданные
 }
+```
+
+## Синхронизация
+
+Клиент работает в режиме offline-first: секреты создаются локально и отправляются на сервер при первой возможности. Sync двусторонний:
+
+1. **Push** — отправляет секреты с `synced=false` на сервер
+2. **Pull** — забирает с сервера секреты изменённые после `last_synced_at`
+
+Конфликт двойного удаления: первый клиент получает OK, второй — `ErrSecretNotFound`. Локальный vault второго клиента очищается при следующем Sync через `deleted_at`.
+
+## Конфигурация
+
+### Сервер
+
+| Переменная | Описание | По умолчанию |
+|---|---|---|
+| `TRANTOR_GRPC` | Адрес gRPC-сервера | `:50051` |
+| `TRANTOR_JWT_SECRET` | Секрет JWT | обязателен |
+| `TRANTOR_DSN` | PostgreSQL DSN | обязателен |
+| `TRANTOR_DB_MAX_CONNS` | Макс. соединений в пуле | `10` |
+| `TRANTOR_DB_MIN_CONNS` | Мин. соединений в пуле | `2` |
+| `TRANTOR_DB_MAX_CONN_LIFETIME` | Макс. время жизни соединения | `1h` |
+| `TRANTOR_DB_MAX_CONN_IDLE_TIME` | Макс. время простоя соединения | `30m` |
+
+### Клиент
+
+| Переменная | Описание | По умолчанию |
+|---|---|---|
+| `TRANTOR_SERVER_ADDR` | Адрес сервера | `localhost:50051` |
+| `TRANTOR_VAULT_PATH` | Путь к локальному хранилищу | `~/.trantor/vault.db` |
+| `TRANTOR_TLS` | Включить TLS | `false` |
+
+## Запуск
+
+### Сервер
+
+```bash
+TRANTOR_DSN="postgres://trantor:trantor@localhost:5432/trantor?sslmode=disable" \
+TRANTOR_JWT_SECRET="some-random-secret-32-bytes-long" \
+go run cmd/server/main.go
+```
+
+### Клиент (TUI)
+
+```bash
+go run cmd/client/main.go
+```
+
+Навигация в TUI:
+
+| Экран | Клавиша | Действие |
+|---|---|---|
+| Список | `↑↓` / `j k` | навигация |
+| Список | `enter` | открыть секрет |
+| Список | `n` | создать секрет |
+| Список | `s` | синхронизировать с сервером |
+| Список | `L` | выйти из аккаунта |
+| Список | `q` | выйти из программы |
+| Детали | `d` | удалить секрет |
+| Детали | `esc` | назад |
+| Везде | `ctrl+c` | выйти из программы |
+
+При первом входе (пустой vault) автоматически выполняется синхронизация с сервером.
+
+```bash
+# Версия
+go run cmd/client/main.go --version
+```
+
+## Тесты
+
+```bash
+# Юнит-тесты (без Docker)
+go test ./...
+
+# Интеграционные тесты (нужен Docker)
+go test -tags=integration ./test/integration/...
+```
+
+## Миграции
+
+```bash
+migrate -path migrations -database "postgres://trantor:trantor@localhost:5432/trantor?sslmode=disable" up
 ```

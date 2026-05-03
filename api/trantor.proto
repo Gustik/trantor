@@ -8,99 +8,142 @@ option go_package = "github.com/Gustik/trantor/api/gen/trantor/v1";
 
 // ───── Auth ─────
 
+// AuthService предоставляет методы аутентификации: регистрация и вход пользователя.
 service AuthService {
+    // Register регистрирует нового пользователя с логином, auth_key и зашифрованным мастер-ключом.
+    // Ошибки: AlreadyExists — логин уже занят, InvalidArgument — логин или auth_key пустые.
     rpc Register(RegisterRequest) returns (RegisterResponse);
-    rpc GetSalt(GetSaltRequest)   returns (GetSaltResponse);   // шаг 1 логина: получить salt по login
-    rpc Login(LoginRequest)       returns (LoginResponse);     // шаг 2 логина: аутентификация по auth_key
+    // GetSalt возвращает argon2 salt по логину пользователя (шаг 1 входа).
+    // Ошибки: NotFound — пользователь с таким логином не найден.
+    rpc GetSalt(GetSaltRequest)   returns (GetSaltResponse);
+    // Login аутентифицирует пользователя по логину и auth_key (шаг 2 входа).
+    // Ошибки: NotFound — пользователь не найден, Unauthenticated — неверный auth_key.
+    rpc Login(LoginRequest)       returns (LoginResponse);
 }
 
+// RegisterRequest содержит данные для регистрации нового пользователя.
+// auth_key и encrypted_master_key вычисляются на клиенте — пароль на сервер не передаётся.
 message RegisterRequest {
     string login                = 1;
     bytes  auth_key             = 2; // первые 32 байта от Argon2(пароль + salt), пароль на сервер не передаётся
-    bytes  encrypted_master_key = 3;
-    bytes  master_key_nonce     = 4;
-    bytes  argon2_salt          = 5;
+    bytes  encrypted_master_key = 3; // AES-GCM(encryption_key, master_key)
+    bytes  master_key_nonce     = 4; // nonce для расшифровки мастер-ключа
+    bytes  argon2_salt          = 5; // salt для Argon2, хранится на сервере
 }
 
+// RegisterResponse возвращает JWT-токен после успешной регистрации.
 message RegisterResponse {
     string token = 1;
 }
 
+// GetSaltRequest запрашивает argon2 salt по логину пользователя.
 message GetSaltRequest {
     string login = 1;
 }
 
+// GetSaltResponse возвращает argon2 salt для вычисления auth_key на клиенте.
 message GetSaltResponse {
     bytes argon2_salt = 1;
 }
 
+// LoginRequest содержит данные для аутентификации пользователя.
+// Пароль на сервер не передаётся — только auth_key, вычисленный на клиенте.
 message LoginRequest {
     string login    = 1;
     bytes  auth_key = 2; // первые 32 байта от Argon2(пароль + salt), пароль на сервер не передаётся
 }
 
+// LoginResponse возвращает JWT-токен и зашифрованный мастер-ключ для расшифровки данных на клиенте.
 message LoginResponse {
     string                    token                = 1;
-    bytes                     encrypted_master_key = 2;
-    bytes                     master_key_nonce     = 3;
+    bytes                     encrypted_master_key = 2; // AES-GCM(encryption_key, master_key)
+    bytes                     master_key_nonce     = 3; // nonce для расшифровки мастер-ключа
 }
 
 // ───── Secrets ─────
 
+// SecretService предоставляет методы для управления зашифрованными секретами.
 service SecretService {
+    // CreateSecret создаёт новый зашифрованный секрет.
+    // Ошибки: Unauthenticated — токен отсутствует или недействителен, InvalidArgument — data или nonce пустые.
     rpc CreateSecret(CreateSecretRequest) returns (CreateSecretResponse);
+    // GetSecret возвращает секрет по ID.
+    // Ошибки: Unauthenticated — токен недействителен, NotFound — секрет не найден, PermissionDenied — секрет принадлежит другому пользователю.
     rpc GetSecret(GetSecretRequest)       returns (GetSecretResponse);
+    // ListSecrets возвращает все секреты пользователя, опционально фильтруя по времени обновления.
+    // Ошибки: Unauthenticated — токен отсутствует или недействителен.
     rpc ListSecrets(ListSecretsRequest)   returns (ListSecretsResponse);
+    // UpdateSecret обновляет существующий секрет.
+    // Ошибки: Unauthenticated — токен недействителен, NotFound — секрет не найден, PermissionDenied — секрет принадлежит другому пользователю.
     rpc UpdateSecret(UpdateSecretRequest) returns (UpdateSecretResponse);
+    // DeleteSecret удаляет секрет по ID.
+    // Ошибки: Unauthenticated — токен недействителен, NotFound — секрет не найден, PermissionDenied — секрет принадлежит другому пользователю.
     rpc DeleteSecret(DeleteSecretRequest) returns (DeleteSecretResponse);
 }
 
+// Secret представляет зашифрованный секрет пользователя.
+// Сервер не знает содержимого data — все данные зашифрованы мастер-ключом на клиенте.
+// Если deleted_at установлен — секрет удалён: data и nonce обнулены, клиент должен удалить его локально.
 message Secret {
     string                    id         = 1;
-    bytes                     data       = 2;
-    bytes                     nonce      = 3;
+    bytes                     data       = 2; // AES-GCM(master_key, SecretPayload{Type, Name, Data, Metadata}), NULL если удалён
+    bytes                     nonce      = 3; // nonce для расшифровки data, NULL если удалён
     google.protobuf.Timestamp created_at = 4;
     google.protobuf.Timestamp updated_at = 5;
+    google.protobuf.Timestamp deleted_at = 6; // установлен если секрет удалён (soft delete)
 }
 
+// CreateSecretRequest содержит зашифрованный blob для сохранения на сервере.
+// id генерируется клиентом (UUID v4) — позволяет безопасно повторять запрос при потере сети.
 message CreateSecretRequest {
-    bytes data  = 1;
-    bytes nonce = 2;
+    string id    = 3; // client-generated UUID v4
+    bytes  data  = 1; // AES-GCM(master_key, SecretPayload)
+    bytes  nonce = 2; // nonce для расшифровки data
 }
 
+// CreateSecretResponse возвращает ID и время создания нового секрета.
 message CreateSecretResponse {
     string                    id         = 1;
     google.protobuf.Timestamp created_at = 2;
 }
 
+// GetSecretRequest запрашивает секрет по ID.
 message GetSecretRequest {
     string id = 1;
 }
 
+// GetSecretResponse возвращает секрет по ID.
 message GetSecretResponse {
     Secret secret = 1;
 }
 
+// ListSecretsRequest запрашивает список секретов пользователя.
+// Если указан updated_after — возвращаются только секреты изменённые после этого времени (инкрементальная синхронизация).
 message ListSecretsRequest {
     google.protobuf.Timestamp updated_after = 1; // опционально, для инкрементальной синхронизации
 }
 
+// ListSecretsResponse возвращает список зашифрованных секретов пользователя.
 message ListSecretsResponse {
     repeated Secret secrets = 1;
 }
 
+// UpdateSecretRequest содержит обновлённый зашифрованный blob секрета.
 message UpdateSecretRequest {
     string id    = 1;
-    bytes  data  = 2;
-    bytes  nonce = 3;
+    bytes  data  = 2; // AES-GCM(master_key, SecretPayload)
+    bytes  nonce = 3; // nonce для расшифровки data
 }
 
+// UpdateSecretResponse возвращает время обновления секрета.
 message UpdateSecretResponse {
     google.protobuf.Timestamp updated_at = 1;
 }
 
+// DeleteSecretRequest содержит ID секрета для удаления.
 message DeleteSecretRequest {
     string id = 1;
 }
 
+// DeleteSecretResponse — пустой ответ, возвращается при успешном удалении.
 message DeleteSecretResponse {}
